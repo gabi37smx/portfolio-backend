@@ -1,99 +1,548 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin · Mensajes</title>
+  <meta name="theme-color" content="#f2ede3" id="metaTheme">
+  <title>Admin · Mensajes · Portfolio</title>
+
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem("theme");
+        if (!t) t = "light";
+        document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {}
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
   <style>
     :root {
+      --radius: 4px;
+      --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --display: "Space Grotesk", "Inter", system-ui, sans-serif;
+      --mono: "JetBrains Mono", ui-monospace, monospace;
+      --ease: cubic-bezier(.22,.61,.36,1);
+    }
+
+    :root, [data-theme="light"] {
       --bg: #f2ede3;
+      --bg-soft: #e8e2d4;
       --surface: #faf6ed;
+      --surface-2: #ede6d6;
+      --line: #c9c0ad;
       --text: #1a1a1a;
       --muted: #4a4a4a;
+      --muted-2: #6b6b6b;
       --accent: #c1272d;
-      --line: #c9c0ad;
+      --accent-rgb: 193, 39, 45;
+      --accent-2: #3a5a40;
+      --accent-3: #d4a017;
+      --on-accent: #f2ede3;
+      --grid-line: rgba(26,26,26,.08);
     }
+
+    [data-theme="dark"] {
+      --bg: #151310;
+      --bg-soft: #1c1916;
+      --surface: #1e1b17;
+      --surface-2: #24201b;
+      --line: #3a342c;
+      --text: #f2ede3;
+      --muted: #b8ae9e;
+      --muted-2: #8a8175;
+      --accent: #e04a4f;
+      --accent-rgb: 224, 74, 79;
+      --accent-2: #7fa37a;
+      --accent-3: #e0b04a;
+      --on-accent: #151310;
+      --grid-line: rgba(242,237,227,.05);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { color-scheme: light dark; }
     body {
-      font-family: system-ui, -apple-system, sans-serif;
-      background: var(--bg);
-      color: var(--text);
       margin: 0;
-      padding: 2rem;
-      line-height: 1.5;
+      font-family: var(--font);
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.6;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      transition: background .4s var(--ease), color .4s var(--ease);
     }
-    .container { max-width: 900px; margin: 0 auto; }
-    h1 { font-size: 1.8rem; margin: 0 0 1.5rem; }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background-image:
+        linear-gradient(var(--grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+
+    h1, h2, h3 {
+      font-family: var(--display);
+      font-weight: 700;
+      letter-spacing: -.02em;
+      line-height: 1.1;
+      margin: 0;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    .admin-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 2px solid var(--text);
+      flex-wrap: wrap;
+    }
+    .admin-header h1 {
+      font-size: clamp(1.5rem, 3vw, 2rem);
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .admin-actions {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      padding: .5rem .85rem;
+      font-family: var(--font);
+      font-size: .82rem;
+      font-weight: 600;
+      color: var(--text);
+      background: var(--surface);
+      border: 2px solid var(--text);
+      border-radius: var(--radius);
+      box-shadow: 2px 2px 0 var(--text);
+      cursor: pointer;
+      transition: transform .15s var(--ease), box-shadow .15s var(--ease), background .2s var(--ease), color .2s var(--ease);
+    }
+    .btn:hover {
+      transform: translate(1px, 1px);
+      box-shadow: 1px 1px 0 var(--text);
+    }
+    .btn--primary {
+      background: var(--accent);
+      color: var(--on-accent);
+    }
+
+    .stats {
+      display: flex;
+      gap: .75rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .stat {
+      display: inline-flex;
+      align-items: baseline;
+      gap: .4rem;
+      padding: .4rem .8rem;
+      font-family: var(--mono);
+      font-size: .8rem;
+      background: var(--surface);
+      border: 2px solid var(--text);
+      border-radius: var(--radius);
+      box-shadow: 2px 2px 0 var(--text);
+    }
+    .stat strong {
+      font-family: var(--display);
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .stat span { color: var(--muted); }
+
+    .messages {
+      display: grid;
+      gap: 1.25rem;
+    }
+
     .card {
+      position: relative;
       background: var(--surface);
       border: 2px solid var(--text);
       box-shadow: 4px 4px 0 var(--text);
-      padding: 1.5rem;
-      margin-bottom: 1rem;
+      padding: 1.5rem 1.5rem 1.25rem;
+      transition: transform .2s var(--ease), box-shadow .2s var(--ease), border-color .2s var(--ease);
     }
-    .card.no-leido { border-left: 6px solid var(--accent); }
-    .card h3 { margin: 0 0 .5rem; font-size: 1.1rem; }
-    .meta { font-size: .85rem; color: var(--muted); margin-bottom: .75rem; }
-    .msg { white-space: pre-wrap; }
-    .btn {
-      font-family: monospace;
-      font-size: .8rem;
-      padding: .4rem .8rem;
-      background: var(--surface);
-      border: 2px solid var(--text);
-      cursor: pointer;
+    .card.no-leido {
+      border-left: 6px solid var(--accent);
+    }
+    .card.leido {
+      opacity: .65;
+      border-left: 6px solid var(--line);
+    }
+    .card:hover {
+      transform: translate(2px, 2px);
       box-shadow: 2px 2px 0 var(--text);
     }
-    .btn:hover { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--text); }
-    .empty { text-align: center; padding: 3rem; color: var(--muted); }
+
+    .card__header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .card__title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      font-family: var(--display);
+      color: var(--text);
+      text-transform: lowercase;
+    }
+    .card__title::first-letter {
+      text-transform: uppercase;
+    }
+
+    .badge {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      padding: .2rem .5rem;
+      border: 2px solid var(--text);
+      border-radius: var(--radius);
+      background: var(--surface-2);
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .badge--new {
+      background: var(--accent);
+      color: var(--on-accent);
+    }
+
+    .card__meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: .5rem .75rem;
+      font-size: .88rem;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px dashed var(--line);
+    }
+    .card__meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: .15rem;
+    }
+    .card__meta-label {
+      font-family: var(--mono);
+      font-size: .68rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--muted-2);
+    }
+    .card__meta-value {
+      color: var(--text);
+      word-break: break-word;
+    }
+    .card__meta-value a {
+      color: var(--text);
+      border-bottom: 1px solid var(--line);
+      transition: color .2s var(--ease), border-color .2s var(--ease);
+    }
+    .card__meta-value a:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .card__message {
+      font-size: .95rem;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      margin: 0 0 1rem;
+      padding: .75rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .card__footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .75rem;
+      flex-wrap: wrap;
+    }
+    .card__date {
+      font-family: var(--mono);
+      font-size: .78rem;
+      color: var(--muted-2);
+    }
+
+    .empty {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .9rem;
+    }
+    .empty strong {
+      display: block;
+      font-family: var(--display);
+      font-size: 1.1rem;
+      color: var(--text);
+      margin-bottom: .25rem;
+    }
+    .error-msg {
+      padding: 1.25rem;
+      border: 2px solid var(--accent);
+      background: rgba(var(--accent-rgb), .08);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: .88rem;
+    }
+
+    .loader {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--line);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .theme-toggle {
+      position: relative;
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      background: var(--surface);
+      border: 2px solid var(--text);
+      border-radius: var(--radius);
+      color: var(--text);
+      box-shadow: 2px 2px 0 var(--text);
+      cursor: pointer;
+      overflow: hidden;
+      transition: transform .15s var(--ease), box-shadow .15s var(--ease);
+    }
+    .theme-toggle:hover { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--text); }
+    .theme-toggle .icon {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      transition: transform .4s var(--ease), opacity .3s var(--ease);
+    }
+    .theme-toggle .icon-sun { transform: rotate(0) scale(1); opacity: 1; }
+    .theme-toggle .icon-moon { transform: rotate(90deg) scale(0); opacity: 0; }
+    [data-theme="dark"] .theme-toggle .icon-sun { transform: rotate(-90deg) scale(0); opacity: 0; }
+    [data-theme="dark"] .theme-toggle .icon-moon { transform: rotate(0) scale(1); opacity: 1; }
+
+    @media (max-width: 640px) {
+      .container { padding: 1.25rem 1rem 3rem; }
+      .card { padding: 1.25rem 1rem 1rem; }
+      .admin-header h1 { font-size: 1.35rem; }
+      .card__meta { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>📬 Mensajes del portfolio</h1>
-    <p class="meta">Esta página se carga con tu contraseña en la URL. No la compartas.</p>
-    <div id="lista"></div>
+    <header class="admin-header">
+      <h1>📬 Mensajes del portfolio</h1>
+      <div class="admin-actions">
+        <button class="btn" id="refreshBtn" title="Recargar mensajes">
+          ⟳ Recargar
+        </button>
+        <button class="theme-toggle" id="themeToggle" aria-label="Cambiar tema">
+          <svg class="icon icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="icon icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="stats" id="stats" hidden>
+      <div class="stat"><strong id="totalCount">0</strong><span>total</span></div>
+      <div class="stat"><strong id="unreadCount">0</strong><span>sin leer</span></div>
+      <div class="stat"><strong id="callCount">0</strong><span>piden llamada</span></div>
+    </div>
+
+    <div id="content">
+      <div class="empty"><span class="loader"></span> Cargando mensajes…</div>
+    </div>
   </div>
 
   <script>
+    const themeBtn = document.getElementById("themeToggle");
+    const metaTheme = document.getElementById("metaTheme");
+    const root = document.documentElement;
+
+    const DARK_COLOR = "#151310";
+    const LIGHT_COLOR = "#f2ede3";
+
+    const applyTheme = (theme) => {
+      root.setAttribute("data-theme", theme);
+      if (metaTheme) metaTheme.setAttribute("content", theme === "light" ? LIGHT_COLOR : DARK_COLOR);
+      try { localStorage.setItem("theme", theme); } catch (e) {}
+    };
+
+    applyTheme(root.getAttribute("data-theme") || "light");
+
+    themeBtn.addEventListener("click", () => {
+      const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      applyTheme(next);
+    });
+
     const password = new URLSearchParams(location.search).get("password");
+    const content = document.getElementById("content");
+    const stats = document.getElementById("stats");
+
     if (!password) {
-      document.getElementById("lista").innerHTML = '<div class="empty">Falta la contraseña. Añade ?password=tu_contraseña a la URL.</div>';
+      content.innerHTML = `
+        <div class="error-msg">
+          <strong>Falta la contraseña.</strong><br>
+          Añade <code>?password=tu_contraseña</code> a la URL para acceder.
+        </div>`;
     } else {
       cargar();
     }
 
     async function cargar() {
-      const res = await fetch(`/api/contact/messages?password=${encodeURIComponent(password)}`);
-      const data = await res.json();
-      const lista = document.getElementById("lista");
+      content.innerHTML = '<div class="empty"><span class="loader"></span> Cargando mensajes…</div>';
+      try {
+        const res = await fetch(`/api/contact/messages?password=${encodeURIComponent(password)}`);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          content.innerHTML = `<div class="error-msg"><strong>Error ${res.status}:</strong> ${err.error || "No autorizado"}</div>`;
+          return;
+        }
+        const data = await res.json();
 
-      if (!Array.isArray(data) || data.length === 0) {
-        lista.innerHTML = '<div class="empty">No hay mensajes todavía.</div>';
-        return;
+        if (!Array.isArray(data) || data.length === 0) {
+          stats.hidden = true;
+          content.innerHTML = `
+            <div class="empty">
+              <strong>No hay mensajes todavía.</strong>
+              Cuando alguien envíe el formulario, aparecerán aquí.
+            </div>`;
+          return;
+        }
+
+        const total = data.length;
+        const unread = data.filter(m => !m.leido).length;
+        const wantsCall = data.filter(m => m.quiereLlamada).length;
+        document.getElementById("totalCount").textContent = total;
+        document.getElementById("unreadCount").textContent = unread;
+        document.getElementById("callCount").textContent = wantsCall;
+        stats.hidden = false;
+
+        content.innerHTML = `<div class="messages">${data.map(renderCard).join("")}</div>`;
+
+        content.querySelectorAll("[data-mark-read]").forEach(btn => {
+          btn.addEventListener("click", () => marcar(btn.dataset.markRead));
+        });
+      } catch (err) {
+        content.innerHTML = `<div class="error-msg"><strong>Error de conexión:</strong> ${err.message}</div>`;
       }
+    }
 
-      lista.innerHTML = data.map(m => `
-        <div class="card ${m.leido ? "" : "no-leido"}">
-          <h3>${escapeHtml(m.asunto)}</h3>
-          <div class="meta">
-            <strong>${escapeHtml(m.nombre)}</strong> · ${escapeHtml(m.email)}
-            ${m.quiereLlamada ? `· 📞 ${escapeHtml(m.telefono)}` : ""}
-            <br>
-            ${new Date(m.createdAt).toLocaleString("es-ES")}
+    function renderCard(m) {
+      const fecha = new Date(m.createdAt).toLocaleString("es-ES", {
+        day: "2-digit", month: "short", year: "numeric",
+        hour: "2-digit", minute: "2-digit"
+      });
+
+      return `
+        <article class="card ${m.leido ? "leido" : "no-leido"}">
+          <header class="card__header">
+            <h2 class="card__title">${escapeHtml(m.asunto)}</h2>
+            <span class="badge ${m.leido ? "" : "badge--new"}">${m.leido ? "Leído" : "Nuevo"}</span>
+          </header>
+
+          <div class="card__meta">
+            <div class="card__meta-item">
+              <span class="card__meta-label">Nombre</span>
+              <span class="card__meta-value">${escapeHtml(m.nombre)}</span>
+            </div>
+            <div class="card__meta-item">
+              <span class="card__meta-label">Email</span>
+              <span class="card__meta-value"><a href="mailto:${escapeHtml(m.email)}">${escapeHtml(m.email)}</a></span>
+            </div>
+            ${m.quiereLlamada && m.telefono ? `
+            <div class="card__meta-item">
+              <span class="card__meta-label">📞 Quiere llamada</span>
+              <span class="card__meta-value"><a href="tel:${escapeHtml(m.telefono)}">${escapeHtml(m.telefono)}</a></span>
+            </div>` : ""}
+            <div class="card__meta-item">
+              <span class="card__meta-label">Fecha</span>
+              <span class="card__meta-value">${fecha}</span>
+            </div>
           </div>
-          <div class="msg">${escapeHtml(m.mensaje)}</div>
-          ${!m.leido ? `<button class="btn" onclick="marcar('${m._id}')">Marcar como leído</button>` : ""}
-        </div>
-      `).join("");
+
+          <div class="card__message">${escapeHtml(m.mensaje)}</div>
+
+          <footer class="card__footer">
+            <span class="card__date">ID: ${m._id}</span>
+            ${!m.leido ? `<button class="btn btn--primary" data-mark-read="${m._id}">Marcar como leído</button>` : ""}
+          </footer>
+        </article>
+      `;
     }
 
     async function marcar(id) {
-      await fetch(`/api/contact/messages/${id}/leido?password=${encodeURIComponent(password)}`, { method: "PATCH" });
-      cargar();
+      try {
+        const res = await fetch(`/api/contact/messages/${id}/leido?password=${encodeURIComponent(password)}`, { method: "PATCH" });
+        if (res.ok) cargar();
+      } catch (err) {
+        console.error("Error al marcar como leído:", err);
+      }
     }
 
     function escapeHtml(str) {
-      return String(str).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+      if (str === null || str === undefined) return "";
+      return String(str).replace(/[&<>"']/g, c => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[c]));
+    }
+
+    document.getElementById("refreshBtn").addEventListener("click", () => {
+      if (password) cargar();
+    });
+
+    if (password) {
+      setInterval(() => {
+        if (document.visibilityState === "visible") cargar();
+      }, 60000);
     }
   </script>
 </body>
