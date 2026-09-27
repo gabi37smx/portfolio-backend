@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin · Mensajes</title>
+  <style>
+    :root {
+      --bg: #f2ede3;
+      --surface: #faf6ed;
+      --text: #1a1a1a;
+      --muted: #4a4a4a;
+      --accent: #c1272d;
+      --line: #c9c0ad;
+    }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 2rem;
+      line-height: 1.5;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 { font-size: 1.8rem; margin: 0 0 1.5rem; }
+    .card {
+      background: var(--surface);
+      border: 2px solid var(--text);
+      box-shadow: 4px 4px 0 var(--text);
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card.no-leido { border-left: 6px solid var(--accent); }
+    .card h3 { margin: 0 0 .5rem; font-size: 1.1rem; }
+    .meta { font-size: .85rem; color: var(--muted); margin-bottom: .75rem; }
+    .msg { white-space: pre-wrap; }
+    .btn {
+      font-family: monospace;
+      font-size: .8rem;
+      padding: .4rem .8rem;
+      background: var(--surface);
+      border: 2px solid var(--text);
+      cursor: pointer;
+      box-shadow: 2px 2px 0 var(--text);
+    }
+    .btn:hover { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--text); }
+    .empty { text-align: center; padding: 3rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📬 Mensajes del portfolio</h1>
+    <p class="meta">Esta página se carga con tu contraseña en la URL. No la compartas.</p>
+    <div id="lista"></div>
+  </div>
+
+  <script>
+    const password = new URLSearchParams(location.search).get("password");
+    if (!password) {
+      document.getElementById("lista").innerHTML = '<div class="empty">Falta la contraseña. Añade ?password=tu_contraseña a la URL.</div>';
+    } else {
+      cargar();
+    }
+
+    async function cargar() {
+      const res = await fetch(`/api/contact/messages?password=${encodeURIComponent(password)}`);
+      const data = await res.json();
+      const lista = document.getElementById("lista");
+
+      if (!Array.isArray(data) || data.length === 0) {
+        lista.innerHTML = '<div class="empty">No hay mensajes todavía.</div>';
+        return;
+      }
+
+      lista.innerHTML = data.map(m => `
+        <div class="card ${m.leido ? "" : "no-leido"}">
+          <h3>${escapeHtml(m.asunto)}</h3>
+          <div class="meta">
+            <strong>${escapeHtml(m.nombre)}</strong> · ${escapeHtml(m.email)}
+            ${m.quiereLlamada ? `· 📞 ${escapeHtml(m.telefono)}` : ""}
+            <br>
+            ${new Date(m.createdAt).toLocaleString("es-ES")}
+          </div>
+          <div class="msg">${escapeHtml(m.mensaje)}</div>
+          ${!m.leido ? `<button class="btn" onclick="marcar('${m._id}')">Marcar como leído</button>` : ""}
+        </div>
+      `).join("");
+    }
+
+    async function marcar(id) {
+      await fetch(`/api/contact/messages/${id}/leido?password=${encodeURIComponent(password)}`, { method: "PATCH" });
+      cargar();
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+  </script>
+</body>
+</html>
