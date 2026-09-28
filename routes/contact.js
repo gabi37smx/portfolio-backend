@@ -28,7 +28,7 @@ router.post("/", async (req, res) => {
       userAgent: req.get("user-agent"),
     });
 
-    // Enviar email de aviso (no bloquea si falla)
+    // --- 1) Email de aviso para mí (el dueño) ---
     try {
       await resend.emails.send({
         from: process.env.FROM_EMAIL,
@@ -36,18 +36,79 @@ router.post("/", async (req, res) => {
         subject: `📬 Nuevo mensaje: ${asunto}`,
         html: `
           <h2>Nuevo mensaje desde el portfolio</h2>
-          <p><strong>Nombre:</strong> ${nombre}</p>
-          <p><strong>Email:</strong> ${email}</p>
-          ${quiereLlamada ? `<p><strong>Teléfono:</strong> ${telefono}</p>` : ""}
-          <p><strong>Asunto:</strong> ${asunto}</p>
+          <p><strong>Nombre:</strong> ${escapeHtml(nombre)}</p>
+          <p><strong>Email:</strong> ${escapeHtml(email)}</p>
+          ${quiereLlamada ? `<p><strong>Teléfono:</strong> ${escapeHtml(telefono)}</p>` : ""}
+          <p><strong>Asunto:</strong> ${escapeHtml(asunto)}</p>
           <hr>
-          <p>${mensaje.replace(/\n/g, "<br>")}</p>
+          <p>${escapeHtml(mensaje).replace(/\n/g, "<br>")}</p>
           <hr>
           <small>Guardado en MongoDB con ID ${nuevo._id}</small>
         `,
       });
     } catch (emailErr) {
-      console.error("Error enviando email:", emailErr.message);
+      console.error("Error enviando email al dueño:", emailErr.message);
+    }
+
+    // --- 2) Email de auto-respuesta para el usuario que escribió ---
+    try {
+      await resend.emails.send({
+        from: process.env.FROM_EMAIL,
+        to: email,
+        replyTo: process.env.NOTIFY_EMAIL,
+        subject: `He recibido tu mensaje, ${escapeHtml(nombre.split(" ")[0])}`,
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1a1a1a; line-height: 1.6;">
+
+            <div style="border: 2px solid #1a1a1a; padding: 24px; background: #faf6ed; box-shadow: 4px 4px 0 #1a1a1a;">
+
+              <h1 style="font-family: Georgia, 'Times New Roman', serif; font-size: 24px; margin: 0 0 16px; color: #1a1a1a;">
+                Hola, ${escapeHtml(nombre.split(" ")[0])} 👋
+              </h1>
+
+              <p style="margin: 0 0 16px;">
+                Soy <strong>Gabriel Vidal</strong>. He recibido tu mensaje desde mi portfolio y te lo confirmo por aquí para que tengas constancia.
+              </p>
+
+              <p style="margin: 0 0 16px;">
+                Te contestaré personalmente en <strong>24–48 horas</strong>. Si es urgente, puedes responderme directamente a este mismo correo.
+              </p>
+
+              <hr style="border: none; border-top: 1px dashed #c9c0ad; margin: 24px 0;">
+
+              <p style="font-size: 13px; color: #6b6b6b; margin: 0 0 8px; font-family: 'Courier New', monospace; text-transform: uppercase; letter-spacing: 0.05em;">
+                Copia de tu mensaje
+              </p>
+
+              <div style="background: #f2ede3; padding: 12px 16px; border-left: 3px solid #c1272d; font-size: 14px; color: #4a4a4a;">
+                <p style="margin: 0 0 8px;"><strong>Asunto:</strong> ${escapeHtml(asunto)}</p>
+                <p style="margin: 0; white-space: pre-wrap;">${escapeHtml(mensaje)}</p>
+              </div>
+
+              <hr style="border: none; border-top: 1px dashed #c9c0ad; margin: 24px 0;">
+
+              <p style="margin: 0 0 8px; font-size: 14px;">
+                Un saludo,<br>
+                <strong>Gabriel Vidal Badia</strong>
+              </p>
+
+              <p style="margin: 0; font-size: 13px; color: #6b6b6b;">
+                🧗 Portfolio: <a href="https://gabi37smx.github.io/mi-web/" style="color: #c1272d; text-decoration: none;">gabi37smx.github.io/mi-web</a><br>
+                🐙 GitHub: <a href="https://github.com/gabi37smx" style="color: #c1272d; text-decoration: none;">github.com/gabi37smx</a><br>
+                💼 LinkedIn: <a href="https://www.linkedin.com/in/gabriel-vidal-badia-19122a43b" style="color: #c1272d; text-decoration: none;">linkedin.com/in/gabriel-vidal-badia</a>
+              </p>
+
+            </div>
+
+            <p style="text-align: center; font-size: 11px; color: #8a8175; margin: 16px 0 0;">
+              Este correo se ha enviado automáticamente al recibir tu mensaje desde el portfolio.
+            </p>
+
+          </div>
+        `,
+      });
+    } catch (emailErr) {
+      console.error("Error enviando auto-respuesta al usuario:", emailErr.message);
     }
 
     res.status(201).json({ ok: true, id: nuevo._id });
@@ -76,5 +137,17 @@ router.patch("/messages/:id/leido", async (req, res) => {
     res.status(500).json({ error: "Error al actualizar" });
   }
 });
+
+// Helper para escapar HTML
+function escapeHtml(str) {
+  if (str === null || str === undefined) return "";
+  return String(str).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  }[c]));
+}
 
 export default router;
