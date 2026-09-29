@@ -18,6 +18,8 @@ const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
   message: { error: "Demasiados envíos. Inténtalo más tarde." },
+  // Solo cuentan las peticiones POST
+  skip: (req) => req.method !== "POST",
 });
 app.use("/api/contact", limiter);
 
