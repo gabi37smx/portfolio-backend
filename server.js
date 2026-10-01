@@ -8,6 +8,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import contactRouter from "./routes/contact.js";
 import passkeyRouter from "./routes/passkey.js";
+import climbingRouter from "./routes/climbing.js";
 import { adminAuth } from "./middleware/auth.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -39,6 +40,7 @@ mongoose
 app.use("/vendor", express.static(path.join(__dirname, "vendor")));
 app.use("/api/contact", contactRouter);
 app.use("/api/passkey", passkeyRouter);
+app.use("/api/climbing", climbingRouter);
 
 app.get("/", (req, res) => {
   res.json({ ok: true, servicio: "portfolio-backend", version: "1.0" });
