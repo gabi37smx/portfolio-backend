@@ -37,7 +37,6 @@ const logger = winston.createLogger({
       level: "info",
       tryReconnect: true,
       // Expiración opcional: los logs se borran solos a los 30 días
-      options: { useUnifiedTopology: true },
       expireAfterSeconds: 60 * 60 * 24 * 30,
       // Solo guardamos los campos que nos interesan
       format: winston.format.combine(

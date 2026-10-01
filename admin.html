@@ -681,7 +681,7 @@
       });
       const meta = entry.meta && typeof entry.meta === "object"
         ? Object.entries(entry.meta)
-            .filter(([key]) => key !== "servicio")
+          .filter(([key]) => key !== "servicio" && key !== "timestamp")
             .map(([key, value]) => `${key}: ${typeof value === "object" ? JSON.stringify(value) : value}`)
             .join(" · ")
         : "";
