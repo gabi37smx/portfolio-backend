@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es" data-theme="light">
 <head>
   <meta charset="UTF-8">
@@ -15,6 +15,8 @@
       } catch (e) {}
     })();
   </script>
+
+  <script src="/vendor/simplewebauthn.js"></script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -86,370 +88,87 @@
       background-size: 40px 40px;
       pointer-events: none;
     }
-
-    h1, h2, h3 {
-      font-family: var(--display);
-      font-weight: 700;
-      letter-spacing: -.02em;
-      line-height: 1.1;
-      margin: 0;
-    }
-
+    h1, h2, h3 { font-family: var(--display); font-weight: 700; letter-spacing: -.02em; line-height: 1.1; margin: 0; }
     a { color: inherit; text-decoration: none; }
-
-    .container {
-      max-width: 960px;
-      margin: 0 auto;
-      padding: 2rem 1.5rem 4rem;
-    }
-
-    .admin-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      margin-bottom: 2rem;
-      padding-bottom: 1.25rem;
-      border-bottom: 2px solid var(--text);
-      flex-wrap: wrap;
-    }
-    .admin-header h1 {
-      font-size: clamp(1.5rem, 3vw, 2rem);
-      display: flex;
-      align-items: center;
-      gap: .5rem;
-    }
-    .admin-actions {
-      display: flex;
-      align-items: center;
-      gap: .5rem;
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: .4rem;
-      padding: .5rem .85rem;
-      font-family: var(--font);
-      font-size: .82rem;
-      font-weight: 600;
-      color: var(--text);
-      background: var(--surface);
-      border: 2px solid var(--text);
-      border-radius: var(--radius);
-      box-shadow: 2px 2px 0 var(--text);
-      cursor: pointer;
-      transition: transform .15s var(--ease), box-shadow .15s var(--ease), background .2s var(--ease), color .2s var(--ease);
-    }
-    .btn:hover {
-      transform: translate(1px, 1px);
-      box-shadow: 1px 1px 0 var(--text);
-    }
-    .btn--primary {
-      background: var(--accent);
-      color: var(--on-accent);
-    }
-
-    .stats {
-      display: flex;
-      gap: .75rem;
-      margin-bottom: 1.5rem;
-      flex-wrap: wrap;
-    }
-    .stat {
-      display: inline-flex;
-      align-items: baseline;
-      gap: .4rem;
-      padding: .4rem .8rem;
-      font-family: var(--mono);
-      font-size: .8rem;
-      background: var(--surface);
-      border: 2px solid var(--text);
-      border-radius: var(--radius);
-      box-shadow: 2px 2px 0 var(--text);
-    }
-    .stat strong {
-      font-family: var(--display);
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: var(--accent);
-    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+    .admin-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 2rem; padding-bottom: 1.25rem; border-bottom: 2px solid var(--text); flex-wrap: wrap; }
+    .admin-header h1 { font-size: clamp(1.5rem, 3vw, 2rem); display: flex; align-items: center; gap: .5rem; }
+    .admin-actions { display: flex; align-items: center; gap: .5rem; }
+    .btn { display: inline-flex; align-items: center; gap: .4rem; padding: .5rem .85rem; font-family: var(--font); font-size: .82rem; font-weight: 600; color: var(--text); background: var(--surface); border: 2px solid var(--text); border-radius: var(--radius); box-shadow: 2px 2px 0 var(--text); cursor: pointer; transition: transform .15s var(--ease), box-shadow .15s var(--ease), background .2s var(--ease), color .2s var(--ease); }
+    .btn:hover { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--text); }
+    .btn--primary { background: var(--accent); color: var(--on-accent); }
+    .stats { display: flex; gap: .75rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .stat { display: inline-flex; align-items: baseline; gap: .4rem; padding: .4rem .8rem; font-family: var(--mono); font-size: .8rem; background: var(--surface); border: 2px solid var(--text); border-radius: var(--radius); box-shadow: 2px 2px 0 var(--text); }
+    .stat strong { font-family: var(--display); font-size: 1.1rem; font-weight: 700; color: var(--accent); }
     .stat span { color: var(--muted); }
-
-    .messages {
-      display: grid;
-      gap: 1.25rem;
-    }
-
-    .card {
-      position: relative;
-      background: var(--surface);
-      border: 2px solid var(--text);
-      box-shadow: 4px 4px 0 var(--text);
-      padding: 1.5rem 1.5rem 1.25rem;
-      transition: transform .2s var(--ease), box-shadow .2s var(--ease), border-color .2s var(--ease);
-    }
-    .card.no-leido {
-      border-left: 6px solid var(--accent);
-    }
-    .card.leido {
-      opacity: .65;
-      border-left: 6px solid var(--line);
-    }
-    .card:hover {
-      transform: translate(2px, 2px);
-      box-shadow: 2px 2px 0 var(--text);
-    }
-
-    .card__header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 1rem;
-      margin-bottom: 1rem;
-      flex-wrap: wrap;
-    }
-    .card__title {
-      font-size: 1.15rem;
-      font-weight: 700;
-      font-family: var(--display);
-      color: var(--text);
-      text-transform: lowercase;
-    }
-    .card__title::first-letter {
-      text-transform: uppercase;
-    }
-
-    .badge {
-      display: inline-block;
-      font-family: var(--mono);
-      font-size: .68rem;
-      font-weight: 700;
-      letter-spacing: .04em;
-      text-transform: uppercase;
-      padding: .2rem .5rem;
-      border: 2px solid var(--text);
-      border-radius: var(--radius);
-      background: var(--surface-2);
-      color: var(--text);
-      white-space: nowrap;
-    }
-    .badge--new {
-      background: var(--accent);
-      color: var(--on-accent);
-    }
-
-    .card__meta {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: .5rem .75rem;
-      font-size: .88rem;
-      color: var(--muted);
-      margin-bottom: 1rem;
-      padding-bottom: 1rem;
-      border-bottom: 1px dashed var(--line);
-    }
-    .card__meta-item {
-      display: flex;
-      flex-direction: column;
-      gap: .15rem;
-    }
-    .card__meta-label {
-      font-family: var(--mono);
-      font-size: .68rem;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-      color: var(--muted-2);
-    }
-    .card__meta-value {
-      color: var(--text);
-      word-break: break-word;
-    }
-    .card__meta-value a {
-      color: var(--text);
-      border-bottom: 1px solid var(--line);
-      transition: color .2s var(--ease), border-color .2s var(--ease);
-    }
-    .card__meta-value a:hover {
-      color: var(--accent);
-      border-color: var(--accent);
-    }
-
-    .card__message {
-      font-size: .95rem;
-      color: var(--text);
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      margin: 0 0 1rem;
-      padding: .75rem 1rem;
-      background: var(--bg);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      max-height: 300px;
-      overflow-y: auto;
-    }
-
-    .card__footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: .75rem;
-      flex-wrap: wrap;
-    }
-    .card__date {
-      font-family: var(--mono);
-      font-size: .78rem;
-      color: var(--muted-2);
-    }
-
-    .empty {
-      text-align: center;
-      padding: 3rem 1rem;
-      color: var(--muted);
-      font-family: var(--mono);
-      font-size: .9rem;
-    }
-    .empty strong {
-      display: block;
-      font-family: var(--display);
-      font-size: 1.1rem;
-      color: var(--text);
-      margin-bottom: .25rem;
-    }
-    .error-msg {
-      padding: 1.25rem;
-      border: 2px solid var(--accent);
-      background: rgba(var(--accent-rgb), .08);
-      border-radius: var(--radius);
-      color: var(--text);
-      font-family: var(--mono);
-      font-size: .88rem;
-    }
-
-    .loader {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      border: 2px solid var(--line);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin .8s linear infinite;
-    }
+    .messages { display: grid; gap: 1.25rem; }
+    .card { position: relative; background: var(--surface); border: 2px solid var(--text); box-shadow: 4px 4px 0 var(--text); padding: 1.5rem 1.5rem 1.25rem; transition: transform .2s var(--ease), box-shadow .2s var(--ease), border-color .2s var(--ease); }
+    .card.no-leido { border-left: 6px solid var(--accent); }
+    .card.leido { opacity: .65; border-left: 6px solid var(--line); }
+    .card:hover { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--text); }
+    .card__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .card__title { font-size: 1.15rem; font-weight: 700; font-family: var(--display); color: var(--text); text-transform: lowercase; }
+    .card__title::first-letter { text-transform: uppercase; }
+    .badge { display: inline-block; font-family: var(--mono); font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: .2rem .5rem; border: 2px solid var(--text); border-radius: var(--radius); background: var(--surface-2); color: var(--text); white-space: nowrap; }
+    .badge--new { background: var(--accent); color: var(--on-accent); }
+    .card__meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .5rem .75rem; font-size: .88rem; color: var(--muted); margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px dashed var(--line); }
+    .card__meta-item { display: flex; flex-direction: column; gap: .15rem; }
+    .card__meta-label { font-family: var(--mono); font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-2); }
+    .card__meta-value { color: var(--text); word-break: break-word; }
+    .card__meta-value a { color: var(--text); border-bottom: 1px solid var(--line); transition: color .2s var(--ease), border-color .2s var(--ease); }
+    .card__meta-value a:hover { color: var(--accent); border-color: var(--accent); }
+    .card__message { font-size: .95rem; color: var(--text); white-space: pre-wrap; word-wrap: break-word; margin: 0 0 1rem; padding: .75rem 1rem; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); max-height: 300px; overflow-y: auto; }
+    .card__footer { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
+    .card__date { font-family: var(--mono); font-size: .78rem; color: var(--muted-2); }
+    .empty { text-align: center; padding: 3rem 1rem; color: var(--muted); font-family: var(--mono); font-size: .9rem; }
+    .empty strong { display: block; font-family: var(--display); font-size: 1.1rem; color: var(--text); margin-bottom: .25rem; }
+    .error-msg { padding: 1.25rem; border: 2px solid var(--accent); background: rgba(var(--accent-rgb), .08); border-radius: var(--radius); color: var(--text); font-family: var(--mono); font-size: .88rem; }
+    .loader { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    .theme-toggle {
-      position: relative;
-      width: 40px;
-      height: 40px;
-      display: grid;
-      place-items: center;
-      background: var(--surface);
-      border: 2px solid var(--text);
-      border-radius: var(--radius);
-      color: var(--text);
-      box-shadow: 2px 2px 0 var(--text);
-      cursor: pointer;
-      overflow: hidden;
-      transition: transform .15s var(--ease), box-shadow .15s var(--ease);
-    }
+    .theme-toggle { position: relative; width: 40px; height: 40px; display: grid; place-items: center; background: var(--surface); border: 2px solid var(--text); border-radius: var(--radius); color: var(--text); box-shadow: 2px 2px 0 var(--text); cursor: pointer; overflow: hidden; transition: transform .15s var(--ease), box-shadow .15s var(--ease); }
     .theme-toggle:hover { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--text); }
-    .theme-toggle .icon {
-      position: absolute;
-      width: 18px;
-      height: 18px;
-      transition: transform .4s var(--ease), opacity .3s var(--ease);
-    }
+    .theme-toggle .icon { position: absolute; width: 18px; height: 18px; transition: transform .4s var(--ease), opacity .3s var(--ease); }
     .theme-toggle .icon-sun { transform: rotate(0) scale(1); opacity: 1; }
     .theme-toggle .icon-moon { transform: rotate(90deg) scale(0); opacity: 0; }
     [data-theme="dark"] .theme-toggle .icon-sun { transform: rotate(-90deg) scale(0); opacity: 0; }
     [data-theme="dark"] .theme-toggle .icon-moon { transform: rotate(0) scale(1); opacity: 1; }
-
-    .admin-tabs {
-      display: flex;
-      gap: .5rem;
-      margin-bottom: 1.5rem;
-      padding-bottom: 1rem;
-      border-bottom: 2px solid var(--text);
-    }
-    .admin-tab, .filter-btn-logs {
-      font-family: var(--mono);
-      font-weight: 700;
-      text-transform: uppercase;
-      border: 2px solid var(--text);
-      border-radius: var(--radius);
-      background: var(--surface);
-      color: var(--text);
-      box-shadow: 2px 2px 0 var(--text);
-      cursor: pointer;
-      transition: transform .15s var(--ease), box-shadow .15s var(--ease), background .2s var(--ease);
-    }
-    .admin-tab {
-      font-size: .82rem;
-      padding: .55rem .9rem;
-    }
-    .filter-btn-logs {
-      font-size: .75rem;
-      padding: .4rem .8rem;
-    }
-    .admin-tab:hover, .filter-btn-logs:hover {
-      transform: translate(1px, 1px);
-      box-shadow: 1px 1px 0 var(--text);
-    }
-    .admin-tab.is-active, .filter-btn-logs.is-active {
-      background: var(--accent);
-      color: var(--on-accent);
-    }
+    .admin-tabs { display: flex; gap: .5rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid var(--text); }
+    .admin-tab, .filter-btn-logs { font-family: var(--mono); font-weight: 700; text-transform: uppercase; border: 2px solid var(--text); border-radius: var(--radius); background: var(--surface); color: var(--text); box-shadow: 2px 2px 0 var(--text); cursor: pointer; transition: transform .15s var(--ease), box-shadow .15s var(--ease), background .2s var(--ease); }
+    .admin-tab { font-size: .82rem; padding: .55rem .9rem; }
+    .filter-btn-logs { font-size: .75rem; padding: .4rem .8rem; }
+    .admin-tab:hover, .filter-btn-logs:hover { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--text); }
+    .admin-tab.is-active, .filter-btn-logs.is-active { background: var(--accent); color: var(--on-accent); }
     .admin-panel { display: none; }
     .admin-panel.is-active { display: block; }
     .logs-toolbar { margin-bottom: 1.5rem; }
     .logs-filters { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: .75rem; }
-    .logs-hint {
-      font-family: var(--mono);
-      font-size: .75rem;
-      color: var(--muted);
-      margin: 0;
-    }
-    .log-card {
-      display: grid;
-      grid-template-columns: 160px 70px minmax(0, 1fr);
-      gap: 1rem;
-      padding: .75rem 1rem;
-      border: 2px solid var(--text);
-      border-left-width: 6px;
-      background: var(--surface);
-      box-shadow: 2px 2px 0 var(--text);
-      margin-bottom: .5rem;
-      font-family: var(--mono);
-      font-size: .8rem;
-      align-items: start;
-    }
+    .logs-hint { font-family: var(--mono); font-size: .75rem; color: var(--muted); margin: 0; }
+    .login-options { display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-top: 2rem; }
+    .login-option { background: var(--surface); border: 2px solid var(--text); box-shadow: 4px 4px 0 var(--text); padding: 1.5rem; }
+    .login-option h3 { font-family: var(--display); font-size: 1.1rem; margin: 0 0 .5rem; }
+    .login-option p { color: var(--muted); font-size: .9rem; margin: 0 0 1rem; }
+    .login-status { font-family: var(--mono); font-size: .78rem; color: var(--muted); min-height: 1.2em; margin: .75rem 0 0; }
+    .login-status.is-error { color: var(--accent); }
+    .login-status.is-success { color: #3a5a40; }
+    .login-password-form { display: flex; flex-direction: column; gap: .5rem; }
+    .login-password-form input { padding: .7rem .9rem; border: 2px solid var(--text); border-radius: var(--radius); background: var(--bg); color: var(--text); font: inherit; }
+    .passkey-card { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .9rem 1rem; border: 2px solid var(--text); background: var(--surface); box-shadow: 2px 2px 0 var(--text); margin-bottom: .5rem; font-family: var(--mono); font-size: .82rem; }
+    .passkey-card__info { display: flex; flex-direction: column; gap: .15rem; }
+    .passkey-card__name { font-family: var(--display); font-weight: 700; font-size: .95rem; }
+    .passkey-card__meta { color: var(--muted); font-size: .72rem; }
+    .passkey-card__delete { background: transparent; border: 2px solid var(--accent); color: var(--accent); padding: .35rem .65rem; border-radius: var(--radius); font-family: var(--mono); font-size: .72rem; cursor: pointer; }
+    .passkey-card__delete:hover { background: var(--accent); color: var(--on-accent); }
+    .log-card { display: grid; grid-template-columns: 160px 70px minmax(0, 1fr); gap: 1rem; padding: .75rem 1rem; border: 2px solid var(--text); border-left-width: 6px; background: var(--surface); box-shadow: 2px 2px 0 var(--text); margin-bottom: .5rem; font-family: var(--mono); font-size: .8rem; align-items: start; }
     .log-card.log-info { border-left-color: var(--accent-2); }
     .log-card.log-warn { border-left-color: var(--accent-3); }
     .log-card.log-error { border-left-color: var(--accent); }
     .log-card__date { color: var(--muted-2); }
-    .log-card__level {
-      font-weight: 700;
-      text-transform: uppercase;
-      padding: .15rem .45rem;
-      border: 2px solid currentColor;
-      border-radius: var(--radius);
-      text-align: center;
-    }
+    .log-card__level { font-weight: 700; text-transform: uppercase; padding: .15rem .45rem; border: 2px solid currentColor; border-radius: var(--radius); text-align: center; }
     .log-card.log-info .log-card__level { color: var(--accent-2); }
     .log-card.log-warn .log-card__level { color: var(--accent-3); }
     .log-card.log-error .log-card__level { color: var(--accent); }
     .log-card__message { color: var(--text); word-break: break-word; }
-    .log-card__meta {
-      grid-column: 1 / -1;
-      margin-top: .35rem;
-      padding-top: .35rem;
-      border-top: 1px dashed var(--line);
-      color: var(--muted);
-      font-size: .72rem;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-
+    .log-card__meta { grid-column: 1 / -1; margin-top: .35rem; padding-top: .35rem; border-top: 1px dashed var(--line); color: var(--muted); font-size: .72rem; white-space: pre-wrap; word-break: break-word; }
     @media (max-width: 640px) {
       .container { padding: 1.25rem 1rem 3rem; }
       .card { padding: 1.25rem 1rem 1rem; }
@@ -462,179 +181,329 @@
 </head>
 <body>
   <div class="container">
-    <header class="admin-header">
-      <h1>📬 Panel del portfolio</h1>
-      <div class="admin-actions">
-        <button class="btn" id="refreshBtn" title="Recargar">
-          ⟳ Recargar
-        </button>
-        <button class="theme-toggle" id="themeToggle" aria-label="Cambiar tema">
-          <svg class="icon icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
-          </svg>
-          <svg class="icon icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-          </svg>
-        </button>
-      </div>
-    </header>
-
-    <nav class="admin-tabs" role="tablist" aria-label="Secciones del panel">
-      <button class="admin-tab is-active" data-tab="mensajes" role="tab" aria-selected="true">📬 Mensajes</button>
-      <button class="admin-tab" data-tab="logs" role="tab" aria-selected="false">📋 Logs</button>
-    </nav>
-
-    <section class="admin-panel is-active" data-panel="mensajes">
-      <div class="stats" id="stats" hidden>
-        <div class="stat"><strong id="totalCount">0</strong><span>total</span></div>
-        <div class="stat"><strong id="unreadCount">0</strong><span>sin leer</span></div>
-        <div class="stat"><strong id="callCount">0</strong><span>piden llamada</span></div>
-      </div>
-      <div id="content">
-        <div class="empty"><span class="loader"></span> Cargando mensajes…</div>
-      </div>
-    </section>
-
-    <section class="admin-panel" data-panel="logs">
-      <div class="logs-toolbar">
-        <div class="logs-filters" role="group" aria-label="Filtrar logs por nivel">
-          <button class="filter-btn-logs is-active" data-level="all">Todos</button>
-          <button class="filter-btn-logs" data-level="info">Info</button>
-          <button class="filter-btn-logs" data-level="warn">Warn</button>
-          <button class="filter-btn-logs" data-level="error">Error</button>
+    <div id="loginScreen" hidden>
+      <header class="admin-header">
+        <h1>🔐 Acceso al panel</h1>
+      </header>
+      <div class="login-options">
+        <div class="login-option">
+          <h3>Entrar con passkey</h3>
+          <p>Usa tu huella, Face ID o Windows Hello. Más rápido y más seguro.</p>
+          <button id="btnLoginPasskey" class="btn btn--primary">🔑 Entrar con passkey</button>
+          <p class="login-status" id="loginPasskeyStatus" role="status" aria-live="polite"></p>
         </div>
-        <p class="logs-hint">Últimos 100 eventos registrados. Los logs se borran automáticamente a los 30 días.</p>
+        <div class="login-option">
+          <h3>Entrar con contraseña</h3>
+          <p>Método tradicional. Útil si pierdes el dispositivo con la passkey.</p>
+          <form id="formLoginPassword" class="login-password-form">
+            <input type="password" id="inputLoginPassword" placeholder="Contraseña del admin" autocomplete="current-password" required>
+            <button type="submit" class="btn btn--primary">Entrar</button>
+          </form>
+          <p class="login-status" id="loginPasswordStatus" role="status" aria-live="polite"></p>
+        </div>
       </div>
-      <div id="logsContent">
-        <div class="empty"><span class="loader"></span> Cargando logs…</div>
-      </div>
-    </section>
+    </div>
+
+    <div id="adminScreen" hidden>
+      <header class="admin-header">
+        <h1>📬 Panel del portfolio</h1>
+        <div class="admin-actions">
+          <button class="btn" id="btnRegisterPasskey" title="Registrar este dispositivo como passkey">🔑 Registrar passkey</button>
+          <button class="btn" id="refreshBtn" title="Recargar">⟳ Recargar</button>
+          <button class="theme-toggle" id="themeToggle" aria-label="Cambiar tema">
+            <svg class="icon icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="icon icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <nav class="admin-tabs" role="tablist" aria-label="Secciones del panel">
+        <button class="admin-tab is-active" data-tab="mensajes" role="tab" aria-selected="true">📬 Mensajes</button>
+        <button class="admin-tab" data-tab="logs" role="tab" aria-selected="false">📋 Logs</button>
+        <button class="admin-tab" data-tab="passkeys" role="tab" aria-selected="false">🔑 Passkeys</button>
+      </nav>
+
+      <section class="admin-panel is-active" data-panel="mensajes">
+        <div class="stats" id="stats" hidden>
+          <div class="stat"><strong id="totalCount">0</strong><span>total</span></div>
+          <div class="stat"><strong id="unreadCount">0</strong><span>sin leer</span></div>
+          <div class="stat"><strong id="callCount">0</strong><span>piden llamada</span></div>
+        </div>
+        <div id="content"><div class="empty"><span class="loader"></span> Cargando mensajes…</div></div>
+      </section>
+
+      <section class="admin-panel" data-panel="logs">
+        <div class="logs-toolbar">
+          <div class="logs-filters" role="group" aria-label="Filtrar logs por nivel">
+            <button class="filter-btn-logs is-active" data-level="all">Todos</button>
+            <button class="filter-btn-logs" data-level="info">Info</button>
+            <button class="filter-btn-logs" data-level="warn">Warn</button>
+            <button class="filter-btn-logs" data-level="error">Error</button>
+          </div>
+          <p class="logs-hint">Últimos 100 eventos registrados. Los logs se borran automáticamente a los 30 días.</p>
+        </div>
+        <div id="logsContent"><div class="empty"><span class="loader"></span> Cargando logs…</div></div>
+      </section>
+
+      <section class="admin-panel" data-panel="passkeys">
+        <p class="logs-hint">Passkeys registradas en este admin. Puedes borrar una si pierdes un dispositivo.</p>
+        <div id="passkeysContent"><div class="empty"><span class="loader"></span> Cargando passkeys…</div></div>
+      </section>
+    </div>
   </div>
 
   <script>
+    /* ============================================================
+       TEMA
+       ============================================================ */
     const themeBtn = document.getElementById("themeToggle");
     const metaTheme = document.getElementById("metaTheme");
     const root = document.documentElement;
     const DARK_COLOR = "#151310";
     const LIGHT_COLOR = "#f2ede3";
-    const content = document.getElementById("content");
-    const stats = document.getElementById("stats");
-    const logsContent = document.getElementById("logsContent");
-    const password = new URLSearchParams(location.search).get("password");
-    let currentLevel = "all";
 
     const applyTheme = (theme) => {
       root.setAttribute("data-theme", theme);
       if (metaTheme) metaTheme.setAttribute("content", theme === "light" ? LIGHT_COLOR : DARK_COLOR);
       try { localStorage.setItem("theme", theme); } catch (e) {}
     };
-
     applyTheme(root.getAttribute("data-theme") || "light");
-
-    themeBtn.addEventListener("click", () => {
-      const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
-      applyTheme(next);
-    });
-
-    if (!password) {
-      content.innerHTML = `
-        <div class="error-msg">
-          <strong>Falta la contraseña.</strong><br>
-          Añade <code>?password=tu_contraseña</code> a la URL para acceder.
-        </div>`;
-    } else {
-      cargarMensajes();
-      cargarLogs();
+    if (themeBtn) {
+      themeBtn.addEventListener("click", () => {
+        const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+        applyTheme(next);
+      });
     }
 
-    document.querySelectorAll(".admin-tab").forEach(tab => {
+    /* ============================================================
+       SESIÓN
+       ============================================================ */
+    const loginScreen = document.getElementById("loginScreen");
+    const adminScreen = document.getElementById("adminScreen");
+
+    let sessionPassword = new URLSearchParams(location.search).get("password");
+
+    function showAdmin() {
+      loginScreen.hidden = true;
+      adminScreen.hidden = false;
+      cargarMensajes();
+      cargarLogs();
+      cargarPasskeys();
+    }
+
+    function showLogin() {
+      loginScreen.hidden = false;
+      adminScreen.hidden = true;
+    }
+
+    if (sessionPassword) {
+      showAdmin();
+    } else {
+      showLogin();
+    }
+
+    /* ============================================================
+       LOGIN CON PASSKEY
+       ============================================================ */
+    const btnLoginPasskey = document.getElementById("btnLoginPasskey");
+    const loginPasskeyStatus = document.getElementById("loginPasskeyStatus");
+
+    if (btnLoginPasskey) {
+      btnLoginPasskey.addEventListener("click", async () => {
+        loginPasskeyStatus.textContent = "";
+        loginPasskeyStatus.className = "login-status";
+
+        if (!window.SimpleWebAuthnBrowser) {
+          loginPasskeyStatus.textContent = "El navegador no soporta passkeys.";
+          loginPasskeyStatus.classList.add("is-error");
+          return;
+        }
+
+        try {
+          const optionsRes = await fetch("/api/passkey/login/options", { method: "POST" });
+          if (!optionsRes.ok) {
+            const err = await optionsRes.json().catch(() => ({}));
+            throw new Error(err.error || "Error pidiendo opciones");
+          }
+          const options = await optionsRes.json();
+
+          const authResp = await SimpleWebAuthnBrowser.startAuthentication(options);
+
+          const verifyRes = await fetch("/api/passkey/login/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(authResp),
+          });
+          const verifyData = await verifyRes.json();
+
+          if (!verifyRes.ok || !verifyData.verified) {
+            throw new Error(verifyData.error || "Verificación fallida");
+          }
+
+          sessionPassword = verifyData.password;
+          loginPasskeyStatus.textContent = "Acceso correcto. Entrando…";
+          loginPasskeyStatus.classList.add("is-success");
+          setTimeout(showAdmin, 400);
+        } catch (err) {
+          console.error(err);
+          if (err.name === "NotAllowedError") {
+            loginPasskeyStatus.textContent = "Operación cancelada o expirada.";
+          } else {
+            loginPasskeyStatus.textContent = err.message || "No se pudo autenticar.";
+          }
+          loginPasskeyStatus.classList.add("is-error");
+        }
+      });
+    }
+
+    /* ============================================================
+       LOGIN CON CONTRASEÑA
+       ============================================================ */
+    const formLoginPassword = document.getElementById("formLoginPassword");
+    const inputLoginPassword = document.getElementById("inputLoginPassword");
+    const loginPasswordStatus = document.getElementById("loginPasswordStatus");
+
+    if (formLoginPassword) {
+      formLoginPassword.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        loginPasswordStatus.textContent = "";
+        loginPasswordStatus.className = "login-status";
+
+        const candidate = inputLoginPassword.value;
+        try {
+          const res = await fetch(`/api/contact/messages?password=${encodeURIComponent(candidate)}`);
+          if (!res.ok) {
+            loginPasswordStatus.textContent = "Contraseña incorrecta.";
+            loginPasswordStatus.classList.add("is-error");
+            return;
+          }
+          sessionPassword = candidate;
+          loginPasswordStatus.textContent = "Acceso correcto. Entrando…";
+          loginPasswordStatus.classList.add("is-success");
+          setTimeout(showAdmin, 400);
+        } catch (err) {
+          loginPasswordStatus.textContent = "Error de conexión.";
+          loginPasswordStatus.classList.add("is-error");
+        }
+      });
+    }
+
+    /* ============================================================
+       REGISTRAR PASSKEY
+       ============================================================ */
+    const btnRegisterPasskey = document.getElementById("btnRegisterPasskey");
+    if (btnRegisterPasskey) {
+      btnRegisterPasskey.addEventListener("click", async () => {
+        if (!window.SimpleWebAuthnBrowser) {
+          alert("El navegador no soporta passkeys.");
+          return;
+        }
+        try {
+          const optionsRes = await fetch("/api/passkey/register/options", { method: "POST" });
+          if (!optionsRes.ok) throw new Error("Error pidiendo opciones de registro");
+          const options = await optionsRes.json();
+
+          const nombre = prompt("Nombre para este dispositivo (ej: Mi MacBook, iPhone de Gabriel):", "Mi dispositivo") || "Dispositivo sin nombre";
+
+          const regResp = await SimpleWebAuthnBrowser.startRegistration(options);
+          regResp.nombre = nombre;
+
+          const verifyRes = await fetch("/api/passkey/register/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(regResp),
+          });
+          const verifyData = await verifyRes.json();
+          if (!verifyRes.ok || !verifyData.verified) {
+            throw new Error(verifyData.error || "Verificación fallida");
+          }
+          alert("Passkey registrada correctamente. La próxima vez puedes entrar sin contraseña.");
+          cargarPasskeys();
+        } catch (err) {
+          console.error(err);
+          if (err.name === "InvalidStateError") {
+            alert("Este dispositivo ya tiene una passkey registrada.");
+          } else if (err.name === "NotAllowedError") {
+            alert("Operación cancelada.");
+          } else {
+            alert("No se pudo registrar la passkey: " + err.message);
+          }
+        }
+      });
+    }
+
+    /* ============================================================
+       PESTAÑAS
+       ============================================================ */
+    document.querySelectorAll(".admin-tab").forEach((tab) => {
       tab.addEventListener("click", () => {
         const target = tab.dataset.tab;
-        document.querySelectorAll(".admin-tab").forEach(item => {
-          const active = item.dataset.tab === target;
-          item.classList.toggle("is-active", active);
-          item.setAttribute("aria-selected", String(active));
+        document.querySelectorAll(".admin-tab").forEach((t) => {
+          const active = t.dataset.tab === target;
+          t.classList.toggle("is-active", active);
+          t.setAttribute("aria-selected", String(active));
         });
-        document.querySelectorAll(".admin-panel").forEach(panel => {
-          panel.classList.toggle("is-active", panel.dataset.panel === target);
+        document.querySelectorAll(".admin-panel").forEach((p) => {
+          p.classList.toggle("is-active", p.dataset.panel === target);
         });
       });
     });
 
+    /* ============================================================
+       MENSAJES
+       ============================================================ */
+    const content = document.getElementById("content");
+    const stats = document.getElementById("stats");
+
     async function cargarMensajes() {
       content.innerHTML = '<div class="empty"><span class="loader"></span> Cargando mensajes…</div>';
       try {
-        const res = await fetch(`/api/contact/messages?password=${encodeURIComponent(password)}`);
+        const res = await fetch(`/api/contact/messages?password=${encodeURIComponent(sessionPassword || "")}`);
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          content.innerHTML = `<div class="error-msg"><strong>Error ${res.status}:</strong> ${err.error || "No autorizado"}</div>`;
+          content.innerHTML = `<div class="error-msg"><strong>Error ${res.status}:</strong> ${escapeHtml(err.error || "No autorizado")}</div>`;
           return;
         }
         const data = await res.json();
-
         if (!Array.isArray(data) || data.length === 0) {
           stats.hidden = true;
-          content.innerHTML = `
-            <div class="empty">
-              <strong>No hay mensajes todavía.</strong>
-              Cuando alguien envíe el formulario, aparecerán aquí.
-            </div>`;
+          content.innerHTML = `<div class="empty"><strong>No hay mensajes todavía.</strong></div>`;
           return;
         }
-
-        const total = data.length;
-        const unread = data.filter(m => !m.leido).length;
-        const wantsCall = data.filter(m => m.quiereLlamada).length;
-        document.getElementById("totalCount").textContent = total;
-        document.getElementById("unreadCount").textContent = unread;
-        document.getElementById("callCount").textContent = wantsCall;
+        document.getElementById("totalCount").textContent = data.length;
+        document.getElementById("unreadCount").textContent = data.filter(m => !m.leido).length;
+        document.getElementById("callCount").textContent = data.filter(m => m.quiereLlamada).length;
         stats.hidden = false;
-
         content.innerHTML = `<div class="messages">${data.map(renderCard).join("")}</div>`;
-
         content.querySelectorAll("[data-mark-read]").forEach(btn => {
           btn.addEventListener("click", () => marcar(btn.dataset.markRead));
         });
       } catch (err) {
-        content.innerHTML = `<div class="error-msg"><strong>Error de conexión:</strong> ${escapeHtml(err.message)}</div>`;
+        content.innerHTML = `<div class="error-msg">Error de conexión: ${err.message}</div>`;
       }
     }
 
     function renderCard(m) {
       const fecha = new Date(m.createdAt).toLocaleString("es-ES", {
-        day: "2-digit", month: "short", year: "numeric",
-        hour: "2-digit", minute: "2-digit"
+        day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit"
       });
-
       return `
         <article class="card ${m.leido ? "leido" : "no-leido"}">
           <header class="card__header">
             <h2 class="card__title">${escapeHtml(m.asunto)}</h2>
             <span class="badge ${m.leido ? "" : "badge--new"}">${m.leido ? "Leído" : "Nuevo"}</span>
           </header>
-
           <div class="card__meta">
-            <div class="card__meta-item">
-              <span class="card__meta-label">Nombre</span>
-              <span class="card__meta-value">${escapeHtml(m.nombre)}</span>
-            </div>
-            <div class="card__meta-item">
-              <span class="card__meta-label">Email</span>
-              <span class="card__meta-value"><a href="mailto:${escapeHtml(m.email)}">${escapeHtml(m.email)}</a></span>
-            </div>
-            ${m.quiereLlamada && m.telefono ? `
-            <div class="card__meta-item">
-              <span class="card__meta-label">📞 Quiere llamada</span>
-              <span class="card__meta-value"><a href="tel:${escapeHtml(m.telefono)}">${escapeHtml(m.telefono)}</a></span>
-            </div>` : ""}
-            <div class="card__meta-item">
-              <span class="card__meta-label">Fecha</span>
-              <span class="card__meta-value">${fecha}</span>
-            </div>
+            <div class="card__meta-item"><span class="card__meta-label">Nombre</span><span class="card__meta-value">${escapeHtml(m.nombre)}</span></div>
+            <div class="card__meta-item"><span class="card__meta-label">Email</span><span class="card__meta-value"><a href="mailto:${escapeHtml(m.email)}">${escapeHtml(m.email)}</a></span></div>
+            ${m.quiereLlamada && m.telefono ? `<div class="card__meta-item"><span class="card__meta-label">📞 Quiere llamada</span><span class="card__meta-value"><a href="tel:${escapeHtml(m.telefono)}">${escapeHtml(m.telefono)}</a></span></div>` : ""}
+            <div class="card__meta-item"><span class="card__meta-label">Fecha</span><span class="card__meta-value">${fecha}</span></div>
           </div>
-
           <div class="card__message">${escapeHtml(m.mensaje)}</div>
-
           <footer class="card__footer">
             <span class="card__date">ID: ${m._id}</span>
             ${!m.leido ? `<button class="btn btn--primary" data-mark-read="${m._id}">Marcar como leído</button>` : ""}
@@ -645,18 +514,23 @@
 
     async function marcar(id) {
       try {
-        const res = await fetch(`/api/contact/messages/${id}/leido?password=${encodeURIComponent(password)}`, { method: "PATCH" });
+        const res = await fetch(`/api/contact/messages/${id}/leido?password=${encodeURIComponent(sessionPassword || "")}`, { method: "PATCH" });
         if (res.ok) cargarMensajes();
-      } catch (err) {
-        console.error("Error al marcar como leído:", err);
-      }
+      } catch (err) { console.error(err); }
     }
+
+    /* ============================================================
+       LOGS
+       ============================================================ */
+    const logsContent = document.getElementById("logsContent");
+    let currentLevel = "all";
 
     async function cargarLogs() {
       logsContent.innerHTML = '<div class="empty"><span class="loader"></span> Cargando logs…</div>';
       try {
-        const params = new URLSearchParams({ password });
+        const params = new URLSearchParams({ password: sessionPassword || "" });
         if (currentLevel !== "all") params.set("nivel", currentLevel);
+
         const res = await fetch(`/api/contact/logs?${params}`);
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
@@ -665,45 +539,107 @@
         }
         const logs = await res.json();
         if (!Array.isArray(logs) || logs.length === 0) {
-          logsContent.innerHTML = '<div class="empty"><strong>No hay logs todavía.</strong></div>';
+          logsContent.innerHTML = `<div class="empty"><strong>No hay logs todavía.</strong></div>`;
           return;
         }
         logsContent.innerHTML = logs.map(renderLog).join("");
       } catch (err) {
-        logsContent.innerHTML = `<div class="error-msg">Error de conexión: ${escapeHtml(err.message)}</div>`;
+        logsContent.innerHTML = `<div class="error-msg">Error de conexión: ${err.message}</div>`;
       }
     }
 
-    function renderLog(entry) {
-      const fecha = new Date(entry.timestamp).toLocaleString("es-ES", {
-        day: "2-digit", month: "short", year: "numeric",
-        hour: "2-digit", minute: "2-digit", second: "2-digit"
+    function renderLog(l) {
+      const fecha = new Date(l.timestamp).toLocaleString("es-ES", {
+        day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit"
       });
-      const meta = entry.meta && typeof entry.meta === "object"
-        ? Object.entries(entry.meta)
-          .filter(([key]) => key !== "servicio" && key !== "timestamp")
-            .map(([key, value]) => `${key}: ${typeof value === "object" ? JSON.stringify(value) : value}`)
+      const meta = l.meta && typeof l.meta === "object"
+        ? Object.entries(l.meta)
+            .filter(([k]) => k !== "servicio")
+            .map(([k, v]) => `${k}: ${v}`)
             .join(" · ")
         : "";
-      const level = ["info", "warn", "error"].includes(entry.level) ? entry.level : "info";
       return `
-        <article class="log-card log-${level}">
-          <span class="log-card__date">${escapeHtml(fecha)}</span>
-          <span class="log-card__level">${escapeHtml(level)}</span>
-          <span class="log-card__message">${escapeHtml(entry.message || "")}</span>
+        <div class="log-card log-${l.level}">
+          <span class="log-card__date">${fecha}</span>
+          <span class="log-card__level">${l.level}</span>
+          <span class="log-card__message">${escapeHtml(l.message || "")}</span>
           ${meta ? `<span class="log-card__meta">${escapeHtml(meta)}</span>` : ""}
-        </article>
+        </div>
       `;
     }
 
-    document.querySelectorAll(".filter-btn-logs").forEach(btn => {
+    document.querySelectorAll(".filter-btn-logs").forEach((btn) => {
       btn.addEventListener("click", () => {
         currentLevel = btn.dataset.level;
-        document.querySelectorAll(".filter-btn-logs").forEach(item => {
-          item.classList.toggle("is-active", item === btn);
-        });
-        if (password) cargarLogs();
+        document.querySelectorAll(".filter-btn-logs").forEach((b) => b.classList.toggle("is-active", b === btn));
+        cargarLogs();
       });
+    });
+
+    /* ============================================================
+       PASSKEYS
+       ============================================================ */
+    const passkeysContent = document.getElementById("passkeysContent");
+
+    async function cargarPasskeys() {
+      passkeysContent.innerHTML = '<div class="empty"><span class="loader"></span> Cargando passkeys…</div>';
+      try {
+        const res = await fetch(`/api/passkey/list?password=${encodeURIComponent(sessionPassword || "")}`);
+        if (!res.ok) {
+          passkeysContent.innerHTML = `<div class="error-msg">Error cargando passkeys</div>`;
+          return;
+        }
+        const data = await res.json();
+        if (!Array.isArray(data) || data.length === 0) {
+          passkeysContent.innerHTML = `<div class="empty"><strong>No hay passkeys registradas.</strong><br><br>Pulsa "🔑 Registrar passkey" para añadir este dispositivo.</div>`;
+          return;
+        }
+        passkeysContent.innerHTML = data.map(renderPasskey).join("");
+        passkeysContent.querySelectorAll("[data-delete-passkey]").forEach(btn => {
+          btn.addEventListener("click", () => borrarPasskey(btn.dataset.deletePasskey, btn.dataset.name));
+        });
+      } catch (err) {
+        passkeysContent.innerHTML = `<div class="error-msg">Error de conexión: ${err.message}</div>`;
+      }
+    }
+
+    function renderPasskey(p) {
+      const fecha = new Date(p.lastUsedAt || p.createdAt).toLocaleString("es-ES", {
+        day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit"
+      });
+      const backed = p.backedUp ? "Sincronizada" : "Solo este dispositivo";
+      const device = p.deviceType === "multiDevice" ? "Multi-dispositivo" : "Un dispositivo";
+      return `
+        <div class="passkey-card">
+          <div class="passkey-card__info">
+            <span class="passkey-card__name">🔑 ${escapeHtml(p.nombre)}</span>
+            <span class="passkey-card__meta">${device} · ${backed} · Último uso: ${fecha}</span>
+            <span class="passkey-card__meta">ID: ${escapeHtml(p.credentialID).slice(0, 24)}…</span>
+          </div>
+          <button class="passkey-card__delete" data-delete-passkey="${escapeHtml(p.credentialID)}" data-name="${escapeHtml(p.nombre)}">Borrar</button>
+        </div>
+      `;
+    }
+
+    async function borrarPasskey(id, nombre) {
+      if (!confirm(`¿Seguro que quieres borrar la passkey "${nombre}"? Si pierdes el dispositivo, no podrás entrar con él.`)) return;
+      try {
+        const res = await fetch(`/api/passkey/${encodeURIComponent(id)}?password=${encodeURIComponent(sessionPassword || "")}`, { method: "DELETE" });
+        if (res.ok) {
+          cargarPasskeys();
+        } else {
+          alert("No se pudo borrar la passkey.");
+        }
+      } catch (err) {
+        alert("Error de conexión: " + err.message);
+      }
+    }
+
+    /* ============================================================
+       UTILIDADES
+       ============================================================ */
+    document.getElementById("refreshBtn")?.addEventListener("click", () => {
+      if (sessionPassword) { cargarMensajes(); cargarLogs(); cargarPasskeys(); }
     });
 
     function escapeHtml(str) {
@@ -711,22 +647,6 @@
       return String(str).replace(/[&<>"']/g, c => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
       }[c]));
-    }
-
-    document.getElementById("refreshBtn").addEventListener("click", () => {
-      if (password) {
-        cargarMensajes();
-        cargarLogs();
-      }
-    });
-
-    if (password) {
-      setInterval(() => {
-        if (document.visibilityState === "visible") {
-          cargarMensajes();
-          cargarLogs();
-        }
-      }, 60000);
     }
   </script>
 </body>
