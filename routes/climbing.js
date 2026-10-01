@@ -6,7 +6,7 @@ const router = express.Router();
 
 const OVERPASS_ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
-  "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
 ];
 
 const DEFAULT_RADIUS_KM = 30;
@@ -38,6 +38,9 @@ function buildQuery(lat, lon, radiusKm) {
   return `[out:json][timeout:20];
 (
   nwr["sport"="climbing"]["name"]["leisure"!~"sports_centre|fitness_centre"][!"indoor"][!"building"](around:${radiusMeters},${lat},${lon});
+  nwr["climbing"="crag"]["name"](around:${radiusMeters},${lat},${lon});
+  nwr["climbing:sport"="yes"]["name"](around:${radiusMeters},${lat},${lon});
+  nwr["climbing:boulder"="yes"]["name"](around:${radiusMeters},${lat},${lon});
 );
 out center tags 150;`;
 }
