@@ -5,8 +5,9 @@ import { log } from "../logger.js";
 const router = express.Router();
 
 const OVERPASS_ENDPOINTS = [
-  "https://overpass-api.de/api/interpreter",
   "https://overpass.private.coffee/api/interpreter",
+  "https://overpass.osm.ch/api/interpreter",
+  "https://overpass-api.de/api/interpreter",
 ];
 
 const DEFAULT_RADIUS_KM = 30;
@@ -53,6 +54,7 @@ async function queryOverpass(query) {
   let lastError;
   for (const url of OVERPASS_ENDPOINTS) {
     try {
+      log.info("Consultando Overpass", { url });
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -65,7 +67,9 @@ async function queryOverpass(query) {
         signal: AbortSignal.timeout(25000),
       });
       if (!response.ok) throw new Error(`Overpass respondió ${response.status}`);
-      return await response.json();
+      const data = await response.json();
+      log.info("Overpass respondió correctamente", { url, elementos: data.elements?.length || 0 });
+      return data;
     } catch (error) {
       lastError = error;
       log.warn("Fallo en un servidor Overpass", { url, error: error.message });
