@@ -1,4 +1,5 @@
 import "./loadEnv.js";
+import { log } from "./logger.js";
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
@@ -25,8 +26,14 @@ app.use("/api/contact", limiter);
 
 mongoose
   .connect(process.env.MONGODB_URI)
-  .then(() => console.log("✅ MongoDB conectado"))
-  .catch((err) => console.error("❌ Error MongoDB:", err.message));
+  .then(() => {
+    console.log("✅ MongoDB conectado");
+    log.info("Servidor conectado a MongoDB", { accion: "db_conectada" });
+  })
+  .catch((err) => {
+    console.error("❌ Error MongoDB:", err.message);
+    log.error("Error de conexión a MongoDB", { error: err.message });
+  });
 
 app.use("/api/contact", contactRouter);
 
@@ -41,4 +48,5 @@ app.get("/admin", adminAuth, (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Servidor en http://localhost:${PORT}`);
+  log.info("Servidor arrancado", { puerto: PORT, entorno: process.env.NODE_ENV || "development" });
 });

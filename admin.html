@@ -364,20 +364,108 @@
     [data-theme="dark"] .theme-toggle .icon-sun { transform: rotate(-90deg) scale(0); opacity: 0; }
     [data-theme="dark"] .theme-toggle .icon-moon { transform: rotate(0) scale(1); opacity: 1; }
 
+    .admin-tabs {
+      display: flex;
+      gap: .5rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid var(--text);
+    }
+    .admin-tab, .filter-btn-logs {
+      font-family: var(--mono);
+      font-weight: 700;
+      text-transform: uppercase;
+      border: 2px solid var(--text);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 2px 2px 0 var(--text);
+      cursor: pointer;
+      transition: transform .15s var(--ease), box-shadow .15s var(--ease), background .2s var(--ease);
+    }
+    .admin-tab {
+      font-size: .82rem;
+      padding: .55rem .9rem;
+    }
+    .filter-btn-logs {
+      font-size: .75rem;
+      padding: .4rem .8rem;
+    }
+    .admin-tab:hover, .filter-btn-logs:hover {
+      transform: translate(1px, 1px);
+      box-shadow: 1px 1px 0 var(--text);
+    }
+    .admin-tab.is-active, .filter-btn-logs.is-active {
+      background: var(--accent);
+      color: var(--on-accent);
+    }
+    .admin-panel { display: none; }
+    .admin-panel.is-active { display: block; }
+    .logs-toolbar { margin-bottom: 1.5rem; }
+    .logs-filters { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: .75rem; }
+    .logs-hint {
+      font-family: var(--mono);
+      font-size: .75rem;
+      color: var(--muted);
+      margin: 0;
+    }
+    .log-card {
+      display: grid;
+      grid-template-columns: 160px 70px minmax(0, 1fr);
+      gap: 1rem;
+      padding: .75rem 1rem;
+      border: 2px solid var(--text);
+      border-left-width: 6px;
+      background: var(--surface);
+      box-shadow: 2px 2px 0 var(--text);
+      margin-bottom: .5rem;
+      font-family: var(--mono);
+      font-size: .8rem;
+      align-items: start;
+    }
+    .log-card.log-info { border-left-color: var(--accent-2); }
+    .log-card.log-warn { border-left-color: var(--accent-3); }
+    .log-card.log-error { border-left-color: var(--accent); }
+    .log-card__date { color: var(--muted-2); }
+    .log-card__level {
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: .15rem .45rem;
+      border: 2px solid currentColor;
+      border-radius: var(--radius);
+      text-align: center;
+    }
+    .log-card.log-info .log-card__level { color: var(--accent-2); }
+    .log-card.log-warn .log-card__level { color: var(--accent-3); }
+    .log-card.log-error .log-card__level { color: var(--accent); }
+    .log-card__message { color: var(--text); word-break: break-word; }
+    .log-card__meta {
+      grid-column: 1 / -1;
+      margin-top: .35rem;
+      padding-top: .35rem;
+      border-top: 1px dashed var(--line);
+      color: var(--muted);
+      font-size: .72rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
     @media (max-width: 640px) {
       .container { padding: 1.25rem 1rem 3rem; }
       .card { padding: 1.25rem 1rem 1rem; }
       .admin-header h1 { font-size: 1.35rem; }
       .card__meta { grid-template-columns: 1fr; }
+      .log-card { grid-template-columns: 1fr; }
+      .log-card__level { justify-self: start; }
     }
   </style>
 </head>
 <body>
   <div class="container">
     <header class="admin-header">
-      <h1>📬 Mensajes del portfolio</h1>
+      <h1>📬 Panel del portfolio</h1>
       <div class="admin-actions">
-        <button class="btn" id="refreshBtn" title="Recargar mensajes">
+        <button class="btn" id="refreshBtn" title="Recargar">
           ⟳ Recargar
         </button>
         <button class="theme-toggle" id="themeToggle" aria-label="Cambiar tema">
@@ -391,24 +479,49 @@
       </div>
     </header>
 
-    <div class="stats" id="stats" hidden>
-      <div class="stat"><strong id="totalCount">0</strong><span>total</span></div>
-      <div class="stat"><strong id="unreadCount">0</strong><span>sin leer</span></div>
-      <div class="stat"><strong id="callCount">0</strong><span>piden llamada</span></div>
-    </div>
+    <nav class="admin-tabs" role="tablist" aria-label="Secciones del panel">
+      <button class="admin-tab is-active" data-tab="mensajes" role="tab" aria-selected="true">📬 Mensajes</button>
+      <button class="admin-tab" data-tab="logs" role="tab" aria-selected="false">📋 Logs</button>
+    </nav>
 
-    <div id="content">
-      <div class="empty"><span class="loader"></span> Cargando mensajes…</div>
-    </div>
+    <section class="admin-panel is-active" data-panel="mensajes">
+      <div class="stats" id="stats" hidden>
+        <div class="stat"><strong id="totalCount">0</strong><span>total</span></div>
+        <div class="stat"><strong id="unreadCount">0</strong><span>sin leer</span></div>
+        <div class="stat"><strong id="callCount">0</strong><span>piden llamada</span></div>
+      </div>
+      <div id="content">
+        <div class="empty"><span class="loader"></span> Cargando mensajes…</div>
+      </div>
+    </section>
+
+    <section class="admin-panel" data-panel="logs">
+      <div class="logs-toolbar">
+        <div class="logs-filters" role="group" aria-label="Filtrar logs por nivel">
+          <button class="filter-btn-logs is-active" data-level="all">Todos</button>
+          <button class="filter-btn-logs" data-level="info">Info</button>
+          <button class="filter-btn-logs" data-level="warn">Warn</button>
+          <button class="filter-btn-logs" data-level="error">Error</button>
+        </div>
+        <p class="logs-hint">Últimos 100 eventos registrados. Los logs se borran automáticamente a los 30 días.</p>
+      </div>
+      <div id="logsContent">
+        <div class="empty"><span class="loader"></span> Cargando logs…</div>
+      </div>
+    </section>
   </div>
 
   <script>
     const themeBtn = document.getElementById("themeToggle");
     const metaTheme = document.getElementById("metaTheme");
     const root = document.documentElement;
-
     const DARK_COLOR = "#151310";
     const LIGHT_COLOR = "#f2ede3";
+    const content = document.getElementById("content");
+    const stats = document.getElementById("stats");
+    const logsContent = document.getElementById("logsContent");
+    const password = new URLSearchParams(location.search).get("password");
+    let currentLevel = "all";
 
     const applyTheme = (theme) => {
       root.setAttribute("data-theme", theme);
@@ -423,10 +536,6 @@
       applyTheme(next);
     });
 
-    const password = new URLSearchParams(location.search).get("password");
-    const content = document.getElementById("content");
-    const stats = document.getElementById("stats");
-
     if (!password) {
       content.innerHTML = `
         <div class="error-msg">
@@ -434,10 +543,25 @@
           Añade <code>?password=tu_contraseña</code> a la URL para acceder.
         </div>`;
     } else {
-      cargar();
+      cargarMensajes();
+      cargarLogs();
     }
 
-    async function cargar() {
+    document.querySelectorAll(".admin-tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        const target = tab.dataset.tab;
+        document.querySelectorAll(".admin-tab").forEach(item => {
+          const active = item.dataset.tab === target;
+          item.classList.toggle("is-active", active);
+          item.setAttribute("aria-selected", String(active));
+        });
+        document.querySelectorAll(".admin-panel").forEach(panel => {
+          panel.classList.toggle("is-active", panel.dataset.panel === target);
+        });
+      });
+    });
+
+    async function cargarMensajes() {
       content.innerHTML = '<div class="empty"><span class="loader"></span> Cargando mensajes…</div>';
       try {
         const res = await fetch(`/api/contact/messages?password=${encodeURIComponent(password)}`);
@@ -472,7 +596,7 @@
           btn.addEventListener("click", () => marcar(btn.dataset.markRead));
         });
       } catch (err) {
-        content.innerHTML = `<div class="error-msg"><strong>Error de conexión:</strong> ${err.message}</div>`;
+        content.innerHTML = `<div class="error-msg"><strong>Error de conexión:</strong> ${escapeHtml(err.message)}</div>`;
       }
     }
 
@@ -522,11 +646,65 @@
     async function marcar(id) {
       try {
         const res = await fetch(`/api/contact/messages/${id}/leido?password=${encodeURIComponent(password)}`, { method: "PATCH" });
-        if (res.ok) cargar();
+        if (res.ok) cargarMensajes();
       } catch (err) {
         console.error("Error al marcar como leído:", err);
       }
     }
+
+    async function cargarLogs() {
+      logsContent.innerHTML = '<div class="empty"><span class="loader"></span> Cargando logs…</div>';
+      try {
+        const params = new URLSearchParams({ password });
+        if (currentLevel !== "all") params.set("nivel", currentLevel);
+        const res = await fetch(`/api/contact/logs?${params}`);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          logsContent.innerHTML = `<div class="error-msg"><strong>Error ${res.status}:</strong> ${escapeHtml(err.error || "No autorizado")}</div>`;
+          return;
+        }
+        const logs = await res.json();
+        if (!Array.isArray(logs) || logs.length === 0) {
+          logsContent.innerHTML = '<div class="empty"><strong>No hay logs todavía.</strong></div>';
+          return;
+        }
+        logsContent.innerHTML = logs.map(renderLog).join("");
+      } catch (err) {
+        logsContent.innerHTML = `<div class="error-msg">Error de conexión: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    function renderLog(entry) {
+      const fecha = new Date(entry.timestamp).toLocaleString("es-ES", {
+        day: "2-digit", month: "short", year: "numeric",
+        hour: "2-digit", minute: "2-digit", second: "2-digit"
+      });
+      const meta = entry.meta && typeof entry.meta === "object"
+        ? Object.entries(entry.meta)
+            .filter(([key]) => key !== "servicio")
+            .map(([key, value]) => `${key}: ${typeof value === "object" ? JSON.stringify(value) : value}`)
+            .join(" · ")
+        : "";
+      const level = ["info", "warn", "error"].includes(entry.level) ? entry.level : "info";
+      return `
+        <article class="log-card log-${level}">
+          <span class="log-card__date">${escapeHtml(fecha)}</span>
+          <span class="log-card__level">${escapeHtml(level)}</span>
+          <span class="log-card__message">${escapeHtml(entry.message || "")}</span>
+          ${meta ? `<span class="log-card__meta">${escapeHtml(meta)}</span>` : ""}
+        </article>
+      `;
+    }
+
+    document.querySelectorAll(".filter-btn-logs").forEach(btn => {
+      btn.addEventListener("click", () => {
+        currentLevel = btn.dataset.level;
+        document.querySelectorAll(".filter-btn-logs").forEach(item => {
+          item.classList.toggle("is-active", item === btn);
+        });
+        if (password) cargarLogs();
+      });
+    });
 
     function escapeHtml(str) {
       if (str === null || str === undefined) return "";
@@ -536,12 +714,18 @@
     }
 
     document.getElementById("refreshBtn").addEventListener("click", () => {
-      if (password) cargar();
+      if (password) {
+        cargarMensajes();
+        cargarLogs();
+      }
     });
 
     if (password) {
       setInterval(() => {
-        if (document.visibilityState === "visible") cargar();
+        if (document.visibilityState === "visible") {
+          cargarMensajes();
+          cargarLogs();
+        }
       }, 60000);
     }
   </script>

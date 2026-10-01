@@ -1,19 +1,34 @@
 import express from "express";
+import mongoose from "mongoose";
 import { Resend } from "resend";
 import Message from "../models/Message.js";
+import { log } from "../logger.js";
+import { adminAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // POST /api/contact — recibe el formulario
 router.post("/", async (req, res) => {
+  const ip = req.ip || "desconocida";
+
   try {
     const { nombre, email, asunto, mensaje, telefono, quiereLlamada } = req.body;
 
+    log.info("Nuevo intento de envío de formulario", {
+      accion: "formulario_recibido",
+      ip,
+    });
+
     if (!nombre || !email || !asunto || !mensaje) {
+      log.warn("Formulario rechazado: faltan campos obligatorios", { ip });
       return res.status(400).json({ error: "Faltan campos obligatorios" });
     }
     if (mensaje.length < 10) {
+      log.warn("Formulario rechazado: mensaje demasiado corto", {
+        ip,
+        longitud: mensaje.length,
+      });
       return res.status(400).json({ error: "El mensaje es demasiado corto" });
     }
 
@@ -24,8 +39,12 @@ router.post("/", async (req, res) => {
       mensaje,
       telefono: quiereLlamada ? telefono : null,
       quiereLlamada: !!quiereLlamada,
-      ip: req.ip,
+      ip,
       userAgent: req.get("user-agent"),
+    });
+    log.info("Mensaje guardado en MongoDB", {
+      accion: "mensaje_guardado",
+      id: nuevo._id.toString(),
     });
 
     // --- 1) Email de aviso para mí (el dueño) ---
@@ -46,8 +65,13 @@ router.post("/", async (req, res) => {
           <small>Guardado en MongoDB con ID ${nuevo._id}</small>
         `,
       });
+      log.info("Email de aviso enviado al dueño", { id: nuevo._id.toString() });
     } catch (emailErr) {
-      console.error("Error enviando email al dueño:", emailErr.message);
+      log.error("Error enviando email al dueño", {
+        accion: "email_aviso_fallido",
+        mensajeId: nuevo._id.toString(),
+        error: emailErr.message,
+      });
     }
 
     // --- 2) Email de auto-respuesta para el usuario que escribió ---
@@ -107,33 +131,73 @@ router.post("/", async (req, res) => {
           </div>
         `,
       });
+      log.info("Email de auto-respuesta enviado al usuario", { id: nuevo._id.toString() });
     } catch (emailErr) {
-      console.error("Error enviando auto-respuesta al usuario:", emailErr.message);
+      log.error("Error enviando auto-respuesta al usuario", {
+        accion: "email_confirmacion_fallida",
+        mensajeId: nuevo._id.toString(),
+        error: emailErr.message,
+      });
     }
 
-    res.status(201).json({ ok: true, id: nuevo._id });
+    return res.status(201).json({ ok: true, id: nuevo._id });
   } catch (err) {
-    console.error("Error en /api/contact:", err);
+    log.error("Error inesperado en /api/contact", {
+      error: err.message,
+      stack: err.stack,
+      ip,
+    });
     res.status(500).json({ error: "Error interno del servidor" });
   }
 });
 
 // GET /api/contact/messages — solo admin
-router.get("/messages", async (req, res) => {
+router.get("/messages", adminAuth, async (req, res) => {
   try {
     const mensajes = await Message.find().sort({ createdAt: -1 }).limit(200);
     res.json(mensajes);
   } catch (err) {
+    log.error("Error al leer mensajes de contacto", { error: err.message });
     res.status(500).json({ error: "Error al leer mensajes" });
   }
 });
 
+// GET /api/contact/logs — solo admin, últimos 100 logs
+router.get("/logs", adminAuth, async (req, res) => {
+  try {
+    const { nivel } = req.query;
+    const db = mongoose.connection.db;
+    if (!db) throw new Error("MongoDB no está conectado");
+
+    const filtro = {};
+    if (nivel && ["info", "warn", "error"].includes(nivel)) {
+      filtro.level = nivel;
+    }
+
+    const logs = await db
+      .collection("logs")
+      .find(filtro)
+      .sort({ timestamp: -1 })
+      .limit(100)
+      .toArray();
+
+    res.json(logs);
+  } catch (err) {
+    log.error("Error leyendo logs", { error: err.message });
+    res.status(500).json({ error: "Error al leer logs" });
+  }
+});
+
 // PATCH /api/contact/messages/:id/leido
-router.patch("/messages/:id/leido", async (req, res) => {
+router.patch("/messages/:id/leido", adminAuth, async (req, res) => {
   try {
     await Message.findByIdAndUpdate(req.params.id, { leido: true });
     res.json({ ok: true });
   } catch (err) {
+    log.error("Error al actualizar mensaje de contacto", {
+      mensajeId: req.params.id,
+      error: err.message,
+    });
     res.status(500).json({ error: "Error al actualizar" });
   }
 });
