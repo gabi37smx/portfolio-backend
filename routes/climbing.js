@@ -227,11 +227,12 @@ router.get("/", async (req, res) => {
     return res.status(400).json({ error: "Parámetros lat y lon no válidos" });
   }
 
-  /* Enlaces de búsqueda directa: siempre presentes, incluso sin resultados */
+  /* Enlaces de búsqueda directa verificados */
   const searchLinks = cityName
     ? {
-        thecrag: `https://www.thecrag.com/es/climbing/search?q=${encodeURIComponent(cityName)}`,
+        thecrag: `https://www.thecrag.com/search?q=${encodeURIComponent(cityName)}`,
         crags27: `https://27crags.com/search?q=${encodeURIComponent(cityName)}`,
+        thetopo: `https://thetopo.com/site/search?qs=${encodeURIComponent(cityName)}`,
         google: `https://www.google.com/search?q=${encodeURIComponent(`escalada ${cityName}`)}`,
       }
     : null;
