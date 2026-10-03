@@ -15,8 +15,6 @@ const MAX_RADIUS_KM = 60;
 const MAX_RESULTS = 12;
 const CACHE_TTL_MS = 60 * 60 * 1000;
 const cache = new Map();
-const WEATHER_TTL_MS = 15 * 60 * 1000;
-const weatherCache = new Map();
 
 router.use(rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -38,14 +36,20 @@ function buildQuery(lat, lon, radiusKm) {
   const radiusMeters = Math.round(radiusKm * 1000);
   return `[out:json][timeout:20];
 (
-  nwr["sport"="climbing"](around:${radiusMeters},${lat},${lon});
-  nwr["climbing"~"^(crag|boulder|area|sport|indoor)$"](around:${radiusMeters},${lat},${lon});
-  nwr["climbing:sport"="yes"](around:${radiusMeters},${lat},${lon});
-  nwr["climbing:boulder"="yes"](around:${radiusMeters},${lat},${lon});
-  nwr["leisure"="sports_centre"]["sport"="climbing"](around:${radiusMeters},${lat},${lon});
-  nwr["leisure"="fitness_centre"]["sport"="climbing"](around:${radiusMeters},${lat},${lon});
+  node["sport"="climbing"](around:${radiusMeters},${lat},${lon});
+  way["sport"="climbing"](around:${radiusMeters},${lat},${lon});
+  node["climbing"="crag"](around:${radiusMeters},${lat},${lon});
+  way["climbing"="crag"](around:${radiusMeters},${lat},${lon});
+  node["climbing"="boulder"](around:${radiusMeters},${lat},${lon});
+  way["climbing"="boulder"](around:${radiusMeters},${lat},${lon});
+  node["climbing"="area"](around:${radiusMeters},${lat},${lon});
+  way["climbing"="area"](around:${radiusMeters},${lat},${lon});
+  node["climbing:sport"="yes"](around:${radiusMeters},${lat},${lon});
+  way["climbing:sport"="yes"](around:${radiusMeters},${lat},${lon});
+  node["climbing:boulder"="yes"](around:${radiusMeters},${lat},${lon});
+  way["climbing:boulder"="yes"](around:${radiusMeters},${lat},${lon});
 );
-out center tags 200;`;
+out center tags;`;
 }
 
 function googleSite(site, name) {
@@ -79,6 +83,11 @@ async function queryOverpass(query) {
         signal: AbortSignal.timeout(25000),
       });
       if (!response.ok) throw new Error(`Overpass respondió ${response.status}`);
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.toLowerCase().includes("json")) {
+        const text = await response.text();
+        throw new Error(`Overpass devolvió ${contentType || "sin Content-Type"}: ${text.slice(0, 300)}`);
+      }
       const data = await response.json();
       log.info("Overpass respondió correctamente", { url, elementos: data.elements?.length || 0 });
       return data;
@@ -150,93 +159,13 @@ function parseElements(elements, lat, lon) {
   return results.slice(0, MAX_RESULTS * 2);
 }
 
-function isBadWeather({ code, temperature, wind }) {
-  return code >= 51 || wind > 35 || temperature < 3 || temperature > 33;
-}
-
-function weatherPenalty({ code, temperature, wind }) {
-  return Math.min(code, 60) / 10 + wind / 5 + Math.abs(temperature - 17) / 3;
-}
-
-async function fetchWeather(locations) {
-  const params = new URLSearchParams({
-    latitude: locations.map((location) => location.lat.toFixed(4)).join(","),
-    longitude: locations.map((location) => location.lon.toFixed(4)).join(","),
-    current: "temperature_2m,wind_speed_10m,weather_code",
-    timezone: "auto",
-  });
-  const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, {
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!response.ok) throw new Error(`Open-Meteo respondió ${response.status}`);
-
-  const data = await response.json();
-  const forecasts = Array.isArray(data) ? data : [data];
-  return forecasts.map((location) => {
-    if (!location.current) return null;
-    const weather = {
-      code: location.current.weather_code,
-      temperature: Math.round(location.current.temperature_2m),
-      wind: Math.round(location.current.wind_speed_10m),
-    };
-    return { ...weather, good: !isBadWeather(weather) };
-  });
-}
-
-async function withWeather(cacheKey, areas, center) {
-  let weatherByLocation;
-  const cached = weatherCache.get(cacheKey);
-  if (cached && Date.now() - cached.time < WEATHER_TTL_MS) {
-    weatherByLocation = cached.data;
-  } else {
-    try {
-      weatherByLocation = await fetchWeather([center, ...areas]);
-      weatherCache.set(cacheKey, { time: Date.now(), data: weatherByLocation });
-    } catch (error) {
-      log.warn("No se pudo obtener el tiempo de las zonas", { error: error.message });
-      weatherByLocation = [null, ...areas.map(() => null)];
-    }
-  }
-
-  const referenceWeather = weatherByLocation[0] || null;
-  const results = areas.map((area, index) => ({
-    ...area,
-    weather: weatherByLocation[index + 1] || null,
-    best: false,
-  }));
-  const mode = referenceWeather
-    ? isBadWeather(referenceWeather) ? "indoor" : "outdoor"
-    : null;
-  let filtered = mode === "indoor"
-    ? results.filter((area) => area.indoor)
-    : mode === "outdoor"
-      ? results.filter((area) => !area.indoor)
-      : results;
-  let modeFallback = false;
-  if (mode && filtered.length === 0 && results.length > 0) {
-    filtered = results;
-    modeFallback = true;
-  }
-
-  const candidates = mode === "outdoor"
-    ? filtered.filter((area) => area.weather?.good)
-    : [];
-  let bestId = null;
-  if (candidates.length > 0) {
-    const best = candidates.reduce((first, second) =>
-      weatherPenalty(first.weather) <= weatherPenalty(second.weather) ? first : second
-    );
-    best.best = true;
-    bestId = best.id;
-  }
-  return { results: filtered.slice(0, MAX_RESULTS), bestId, mode, modeFallback, referenceWeather };
-}
 
 router.get("/", async (req, res) => {
   const ip = req.ip || "desconocida";
   const lat = Number.parseFloat(req.query.lat);
   const lon = Number.parseFloat(req.query.lon);
   const requestedRadius = Number.parseFloat(req.query.radius);
+  const cityName = typeof req.query.city === "string" ? req.query.city.trim() : "";
   const radius = Number.isFinite(requestedRadius)
     ? Math.min(Math.max(requestedRadius, 1), MAX_RADIUS_KM)
     : DEFAULT_RADIUS_KM;
@@ -244,6 +173,14 @@ router.get("/", async (req, res) => {
   if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
     return res.status(400).json({ error: "Parámetros lat y lon no válidos" });
   }
+
+  const searchLinks = cityName
+    ? {
+        thecrag: `https://www.thecrag.com/es/climbing/search?q=${encodeURIComponent(cityName)}`,
+        crags27: `https://27crags.com/search?q=${encodeURIComponent(cityName)}`,
+        google: `https://www.google.com/search?q=${encodeURIComponent(`escalada ${cityName}`)}`,
+      }
+    : null;
 
   const cacheKey = `${lat.toFixed(4)},${lon.toFixed(4)},${radius}`;
   try {
@@ -257,20 +194,14 @@ router.get("/", async (req, res) => {
       cache.set(cacheKey, { time: Date.now(), areas });
     }
 
-    const { results, bestId, mode, modeFallback, referenceWeather } = await withWeather(
-      cacheKey,
-      areas,
-      { lat, lon }
-    );
+    const results = areas.slice(0, MAX_RESULTS);
     const payload = {
       center: { lat, lon },
+      city: cityName || null,
       radius_km: radius,
       count: results.length,
-      best_id: bestId,
-      mode,
-      mode_fallback: modeFallback,
-      reference_weather: referenceWeather,
-      source: "OpenStreetMap contributors (ODbL) · Open-Meteo",
+      source: "OpenStreetMap contributors (ODbL)",
+      searchLinks,
       results,
     };
 
@@ -281,17 +212,25 @@ router.get("/", async (req, res) => {
       lon,
       radio_km: radius,
       resultados: results.length,
-      modo: mode,
-      fallback_modo: modeFallback,
-      mejor: bestId,
+      ciudad: cityName || "(sin nombre)",
     });
+
     return res.json({
       ...payload,
       cached: Boolean(cached && Date.now() - cached.time < CACHE_TTL_MS),
     });
   } catch (error) {
     log.error("Error consultando zonas de escalada", { error: error.message, ip });
-    return res.status(502).json({ error: "No se pudo consultar las zonas de escalada" });
+    return res.status(200).json({
+      center: { lat, lon },
+      city: cityName || null,
+      radius_km: radius,
+      count: 0,
+      source: "OpenStreetMap contributors (ODbL)",
+      searchLinks,
+      results: [],
+      error: "No se pudo consultar Overpass en este momento",
+    });
   }
 });
 
