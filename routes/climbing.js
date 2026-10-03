@@ -30,7 +30,7 @@ async function queryOpenBeta(city) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query, variables: { search: city } }),
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(25000),
   });
 
   if (!response.ok) throw new Error(`OpenBeta respondió ${response.status}`);

@@ -14,6 +14,7 @@ import { adminAuth } from "./middleware/auth.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
+app.set("trust proxy", 1);
 
 app.use(express.json({ limit: "50kb" }));
 app.use(cors({ origin: process.env.ALLOWED_ORIGIN || "*" }));

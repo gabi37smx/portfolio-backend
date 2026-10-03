@@ -15,11 +15,16 @@ router.use(rateLimit({
 }));
 
 async function fetchGitHub(path) {
+  const headers = {
+    "User-Agent": "portfolio-backend",
+    "Accept": "application/vnd.github+json",
+  };
+  if (process.env.GITHUB_TOKEN) {
+    headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+  }
+
   const response = await fetch(`https://api.github.com${path}`, {
-    headers: {
-      "User-Agent": "portfolio-backend",
-      Accept: "application/vnd.github+json",
-    },
+    headers,
     signal: AbortSignal.timeout(10000),
   });
   if (!response.ok) throw new Error(`GitHub respondió ${response.status}`);
