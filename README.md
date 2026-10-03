@@ -199,18 +199,28 @@ Esta es la práctica recomendada para cualquier dependencia crítica de segurida
 
 ## 🕰️ Historial de versiones
 
+## 🕰️ Historial de versiones
+
 | Versión | Fecha | Descripción |
 |---|---|---|
-| v1 | 27 sep 2026 | Backend base: Express + MongoDB + Resend. Formulario de contacto funcional con guardado en BD y doble email (aviso al dueño + auto-respuesta al usuario). |
+| v1 | 27 sep 2026 | Backend base: Express + MongoDB + Resend. Formulario de contacto con guardado en BD y doble email. |
 | v2 | 27 sep 2026 | Panel de administración con estética topo, tema claro/oscuro y estadísticas. |
 | v2.1 | 28 sep 2026 | Auto-respuesta por email al usuario que envía el formulario. |
 | v2.2 | 29 sep 2026 | Fix: rate limit solo afecta al POST del formulario, no al panel admin. |
-| v3 | 1 oct 2026 | Sistema de logs con Winston y visor en el panel admin (pestaña Logs con filtros por nivel). |
+| v3 | 1 oct 2026 | Sistema de logs con Winston y visor en el panel admin. |
 | v3.1 | 1 oct 2026 | Fix: limpieza de warnings y duplicidad en el visor de logs. |
-| v3.2 | 1 oct 2026 | Endpoints de passkey (`/api/passkey/*`) y vendorización de SimpleWebAuthn. |
-| v4 | 1 oct 2026 | Passkeys con WebAuthn (híbrido: contraseña + passkey). Pantalla de login, pestaña Passkeys, botón "Registrar passkey" y borrado de credenciales. |
-
----
+| v3.2 | 1 oct 2026 | Endpoints de passkey y vendorización de SimpleWebAuthn. |
+| v4 | 1 oct 2026 | Passkeys con WebAuthn (híbrido: contraseña + passkey). Pantalla de login, pestaña Passkeys. |
+| v5 | 2 oct 2026 | Primer endpoint de zonas de escalada (OpenStreetMap / Overpass). |
+| v6 | 2 oct 2026 | Mejora búsqueda y respaldo de zonas OSM. |
+| v7 | 2 oct 2026 | Fallbacks y logs para Overpass (rotación entre 3 servidores). |
+| v8 | 2 oct 2026 | Query OSM ampliada + filtro por tiempo (roca/rocódromo). |
+| v9 | 3 oct 2026 | Simplifica zonas de escalada y añade `searchLinks` a theCrag, 27crags y Google. |
+| v9.1 | 3 oct 2026 | Simplifica respuesta y añade `searchLinks` (limpieza). |
+| v9.2 | 3 oct 2026 | Corrige URLs de búsqueda externa y añade TheTopo. |
+| v10 | 3 oct 2026 | Sustituye Overpass/OSM por **OpenBeta GraphQL**. Nuevo endpoint `/api/climbing/zones?q=CIUDAD`. |
+| v10.1 | 3 oct 2026 | Añade `/api/github/activity` con cache de 30 min. Filtra zonas con coordenadas inválidas. |
+| **v10.2** | **3 oct 2026** | **Autenticación con `GITHUB_TOKEN`** para la API de GitHub (rate limit 5.000/h). Timeout de OpenBeta a 25 s. `app.set("trust proxy", 1)`. **Última versión.** |
 
 ## ⚙️ Variables de entorno
 
