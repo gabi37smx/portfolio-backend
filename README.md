@@ -11,11 +11,12 @@ Backend de la web personal [gabi37smx.github.io/mi-web](https://gabi37smx.github
 
 ## 📖 ¿Qué hace este backend?
 
-Gestiona tres cosas del portfolio:
+Gestiona cuatro cosas del portfolio:
 
 1. **Formulario de contacto** — recibe mensajes de la web pública, los guarda en MongoDB, avisa al dueño por email y envía una auto-respuesta al usuario.
 2. **Panel de administración** — permite al dueño ver los mensajes, marcarlos como leídos, consultar los logs y gestionar sus passkeys.
 3. **Autenticación del admin** — sistema híbrido: **contraseña tradicional** (fallback) + **passkeys con WebAuthn** (huella, Face ID, Windows Hello, llave física).
+4. **Proxy del chatbot "Cordada"** — recibe las preguntas del visitante y las reenvía a una API de IA externa, con rate limit, caché y fallback.
 
 Todo desplegado en **Render** (plan gratuito) con MongoDB Atlas.
 
@@ -27,33 +28,32 @@ Todo desplegado en **Render** (plan gratuito) con MongoDB Atlas.
 |---|---|
 | **Node.js 24** | Runtime |
 | **Express 4** | Servidor HTTP y rutas |
-| **MongoDB Atlas** | Base de datos (colección `messages`, `passkeys`, `logs`) |
+| **MongoDB Atlas** | Base de datos (colecciones `messages`, `passkeys`, `logs`) |
 | **Mongoose** | ODM para MongoDB |
 | **Resend** | Envío de emails transaccionales |
 | **Winston** | Sistema de logs (consola + MongoDB) |
 | **winston-mongodb** | Transporte de logs a MongoDB con TTL |
 | **SimpleWebAuthn v9** | Implementación de WebAuthn (passkeys) |
-| **express-rate-limit** | Protección contra spam en el formulario |
+| **express-rate-limit** | Protección contra spam (formulario + chatbot) |
 | **CORS** | Control de acceso desde el frontend de GitHub Pages |
 | **dotenv** | Variables de entorno |
 
 ---
 
-##  APIs externas integradas
+## 🔗 APIs externas integradas
 
-El backend actúa como proxy/caché de tres APIs públicas:
+El backend actúa como proxy/caché de cuatro APIs públicas:
 
-| API | Uso | Auth |
-|---|---|---|
-| **Open-Meteo** | Tiempo actual de las zonas consultadas | Sin autenticación |
-| **OpenBeta** (GraphQL) | Zonas de escalada por nombre de ciudad | Sin autenticación |
-| **GitHub API** | Actividad pública del usuario | Con `GITHUB_TOKEN` (rate limit 5.000/h) |
+| API | Uso | Auth | Caché |
+|---|---|---|---|
+| **Open-Meteo** | Tiempo actual de las zonas consultadas | Sin autenticación | 15 min |
+| **OpenBeta** (GraphQL) | Zonas de escalada por nombre de ciudad | Sin autenticación | 24 h |
+| **GitHub API** | Actividad pública del usuario | Con `GITHUB_TOKEN` | 30 min |
+| **API de IA del chatbot** | Respuestas del chatbot Cordada | Sin autenticación | 30 min |
 
-Todas las respuestas se cachean en memoria para no abusar de las APIs externas:
+---
 
-- Zonas de escalada: 24 h
-- Actividad GitHub: 30 min
-- Tiempo: 15 min
+## 🔌 Endpoints disponibles
 
 ### Formulario y mensajes (`/api/contact`)
 
@@ -62,78 +62,88 @@ Todas las respuestas se cachean en memoria para no abusar de las APIs externas:
 | POST | `/api/contact` | ❌ | Recibe el formulario, guarda en BD y envía 2 emails |
 | GET | `/api/contact/messages` | ✅ | Devuelve todos los mensajes (admin) |
 | PATCH | `/api/contact/messages/:id/leido` | ✅ | Marca un mensaje como leído |
-| GET | `/api/contact/logs` | ✅ | Devuelve los últimos 100 logs (admin, filtrable por `?nivel=info|warn|error`) |
+| GET | `/api/contact/logs` | ✅ | Devuelve los últimos 100 logs (admin, filtrable por `?nivel=info\|warn\|error`) |
 
-### Passkeys (`/api/passkey`)
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| POST | `/api/passkey/register/options` | Genera las opciones de registro |
-| POST | `/api/passkey/register/verify` | Verifica la respuesta del navegador y guarda la credencial |
-| POST | `/api/passkey/login/options` | Genera las opciones de autenticación |
-| POST | `/api/passkey/login/verify` | Verifica la firma y devuelve la contraseña del admin |
-| GET | `/api/passkey/list` | Lista las passkeys registradas (admin) |
-| DELETE | `/api/passkey/:credentialID` | Borra una passkey (admin) |
-
-### Otros
+### Chatbot (`/api/chat`)
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| GET | `/` | Estado del servicio |
-| GET | `/admin` | Panel de administración (HTML) |
-| GET | `/vendor/simplewebauthn.js` | Librería SimpleWebAuthn vendorizada |
+| POST | `/api/chat` | Proxy del chatbot Cordada. Recibe la pregunta, la envía a la IA externa y devuelve la respuesta. Rate limit: 10 peticiones / 15 min por IP. Caché: 30 min por pregunta + idioma. |
 
----
+**Body esperado:**
+```json
+{
+  "instrucciones": "texto del prompt de sistema del bot",
+  "historial": ["(visitante) hola", "(Cordada) ¡Hola! Soy Cordada..."],
+  "pregunta": "¿Qué estudias?",
+  "idioma": "es" | "val" | "en"
+}
+Respuesta:
 
-## 🔐 Autenticación híbrida (passkeys + contraseña)
+json
+{ "ok": true, "respuesta": "texto generado por la IA" }
+o en caso de error:
 
-El admin puede entrar de **dos formas**:
+json
+{ "ok": false, "error": "mensaje amable en español" }
+Passkeys (/api/passkey)
+Método	Ruta	Descripción
+POST	/api/passkey/register/options	Genera las opciones de registro
+POST	/api/passkey/register/verify	Verifica la respuesta del navegador y guarda la credencial
+POST	/api/passkey/login/options	Genera las opciones de autenticación
+POST	/api/passkey/login/verify	Verifica la firma y devuelve la contraseña del admin
+GET	/api/passkey/list	Lista las passkeys registradas (admin)
+DELETE	/api/passkey/:credentialID	Borra una passkey (admin)
+Otros
+Método	Ruta	Descripción
+GET	/	Estado del servicio
+GET	/admin	Panel de administración (HTML)
+GET	/vendor/simplewebauthn.js	Librería SimpleWebAuthn vendorizada
+🤖 Chatbot Cordada · arquitectura
+El endpoint /api/chat es un proxy. El frontend nunca llama directamente a la API de IA externa. Ventajas:
 
-1. **Con passkey** (recomendado) — usando huella, Face ID, Windows Hello, PIN o llave física USB.
-2. **Con contraseña** — método tradicional, útil si pierdes el dispositivo con la passkey.
+Rate limit por IP: máximo 10 peticiones / 15 min.
 
-**Por qué híbrido y no solo passkey:** si perdieras el único dispositivo donde registraste la passkey, te quedarías fuera del admin sin forma de recuperarlo. Con el fallback de contraseña **nunca te bloqueas**.
+Caché por pregunta + idioma: si alguien repite la misma pregunta, se sirve al instante.
 
-**Cómo funciona el flujo:**
+Validación: rechaza preguntas > 500 caracteres o instrucciones > 4.000 caracteres.
 
-```
-1. Usuario pulsa "Entrar con passkey" en el admin
-2. Frontend → POST /api/passkey/login/options
-3. Backend genera challenge y lista de credenciales permitidas
-4. Navegador → WebAuthn API → Windows Hello / Face ID / Touch ID
-5. Frontend → POST /api/passkey/login/verify con la firma
-6. Backend verifica la firma con la clave pública guardada en MongoDB
-7. Backend devuelve la contraseña del admin (que el frontend usa como antes)
-```
+Logs con Winston: registra cada petición (idioma, longitud, cache hit) sin guardar el texto de la pregunta.
 
-**Estándar:** WebAuthn (W3C). El mismo que usan Google, GitHub, Microsoft y Apple.
+Manejo de errores: si la IA externa falla, devuelve un JSON amable con estado 502. El frontend cae al árbol de decisión.
 
-**Vendorizado:** la librería `@simplewebauthn/browser` está en `/vendor/simplewebauthn.js`, **no se carga desde CDN externo**. Así el admin no depende de `unpkg.com` ni de terceros.
+Nota sobre la IA externa: durante el desarrollo, dos servicios gratuitos de IA dejaron de funcionar (Pollinations y KeylessAI). El chatbot sigue funcionando gracias al árbol de decisión del frontend. Cuando haya un servicio fiable disponible, se conectará sin tocar el frontend.
 
----
+🔐 Autenticación híbrida (passkeys + contraseña)
+El admin puede entrar de dos formas:
 
-## 📋 Sistema de logs
+Con passkey (recomendado) — usando huella, Face ID, Windows Hello, PIN o llave física USB.
 
-Los eventos importantes del backend se registran con **Winston** y se guardan en:
+Con contraseña — método tradicional, útil si pierdes el dispositivo con la passkey.
 
-1. **Consola** — visibles en los logs de Render.
-2. **MongoDB** — colección `logs`, con TTL de 30 días (borrado automático).
+Por qué híbrido y no solo passkey: si perdieras el único dispositivo donde registraste la passkey, te quedarías fuera del admin sin forma de recuperarlo. Con el fallback de contraseña nunca te bloqueas.
 
-**Niveles usados:**
+Estándar: WebAuthn (W3C). El mismo que usan Google, GitHub, Microsoft y Apple.
 
-| Nivel | Cuándo se usa |
-|---|---|
-| `info` | Todo va bien (arranque, conexión a BD, mensaje guardado, login correcto...) |
-| `warn` | Algo raro pero no rompe (contraseña incorrecta, mensaje rechazado...) |
-| `error` | Algo se ha roto (fallo de email, excepción no controlada...) |
+Vendorizado: la librería @simplewebauthn/browser está en /vendor/simplewebauthn.js, no se carga desde CDN externo.
 
-**Cómo consultarlos:** panel admin → pestaña **Logs**, con filtros por nivel (`Todos` / `Info` / `Warn` / `Error`).
+📋 Sistema de logs
+Los eventos importantes del backend se registran con Winston y se guardan en:
 
----
+Consola — visibles en los logs de Render.
 
-## 📁 Estructura del proyecto
+MongoDB — colección logs, con TTL de 30 días (borrado automático).
 
-```
+Niveles usados:
+
+Nivel	Cuándo se usa
+info	Todo va bien (arranque, conexión a BD, mensaje guardado, chat recibido...)
+warn	Algo raro pero no rompe (contraseña incorrecta, la IA del chatbot falló...)
+error	Algo se ha roto (fallo de email, excepción no controlada...)
+Cómo consultarlos: panel admin → pestaña Logs, con filtros por nivel.
+
+📁 Estructura del proyecto
+text
 portfolio-backend/
 ├── middleware/
 │   └── auth.js              ← Middleware de autenticación admin (contraseña)
@@ -142,103 +152,87 @@ portfolio-backend/
 │   └── Passkey.js           ← Esquema de credenciales WebAuthn
 ├── routes/
 │   ├── contact.js           ← Endpoints del formulario + logs
-│   └── passkey.js           ← Endpoints de registro y login con WebAuthn
+│   ├── passkey.js           ← Endpoints de WebAuthn
+│   ├── chat.js              ← Proxy del chatbot Cordada
+│   ├── climbing.js          ← Zonas de escalada (OpenBeta)
+│   └── github.js            ← Actividad de GitHub
 ├── vendor/
-│   ├── simplewebauthn.js    ← Librería SimpleWebAuthn (browser) vendorizada
+│   ├── simplewebauthn.js    ← Librería SimpleWebAuthn vendorizada
 │   └── SIMPLEWEBAUTHN-LICENSE.md
-├── admin.html               ← Panel de administración (HTML+CSS+JS embebido)
-├── logger.js                ← Configuración de Winston (consola + MongoDB)
+├── admin.html               ← Panel de administración
+├── logger.js                ← Configuración de Winston
 ├── loadEnv.js               ← Carga de variables de entorno
 ├── server.js                ← Servidor Express principal
 ├── package.json
 ├── package-lock.json
 ├── .env                     ← Variables locales (NO se sube)
 ├── .env.example             ← Plantilla de variables
-├── .gitignore
 └── README.md                ← Este archivo
-```
+🏗️ Decisiones de arquitectura (ADR)
+ADR 1 · Autenticación híbrida (contraseña + passkey)
+Situación. El panel admin necesitaba autenticación seria. Contraseña clásica es simple pero vulnerable; passkey es segura pero bloquea al usuario si pierde el dispositivo.
 
----
+Decisión. Autenticación híbrida: passkey como método principal y contraseña como fallback.
 
-## 🏗️ Decisiones de arquitectura (ADR)
+Consecuencia. Ganas la seguridad de WebAuthn sin quedarte nunca bloqueado. Es el enfoque que usan GitHub, Google, Microsoft y Apple.
 
-### ADR 1 · Autenticación híbrida (contraseña + passkey) en lugar de solo uno
+ADR 2 · Winston con transporte a MongoDB en lugar de archivos .log
+Situación. Necesitaba diagnosticar problemas desde cualquier sitio sin abrir la consola de Render. En Render Free, el filesystem es efímero.
 
-**Situación.** El panel admin necesitaba una autenticación seria. Las opciones eran: contraseña clásica (simple pero vulnerable) o passkeys con WebAuthn (seguras pero con riesgo de bloqueo si pierdes el dispositivo).
+Decisión. Usar Winston con dos transportes: consola y MongoDB.
 
-**Decisión.** Implementar **autenticación híbrida**: passkey como método principal y contraseña como fallback.
+Consecuencia. Los logs sobreviven a cada deploy, se consultan desde el panel admin, y se borran automáticamente a los 30 días por el TTL de MongoDB.
 
-**Consecuencia.**
-- ✅ Ganas la seguridad de WebAuthn (imposible de phishing, sin secretos compartidos).
-- ✅ Nunca te quedas bloqueado: si pierdes el móvil o el portátil, entras con la contraseña.
-- ✅ Puedes registrar varias passkeys (un dispositivo por passkey) y borrarlas cuando quieras.
-- ⚠️ El código tiene que mantener los dos flujos, así que hay un poco más de superficie que cubrir.
+ADR 3 · Vendorizar SimpleWebAuthn en lugar de usar un CDN
+Situación. La librería @simplewebauthn/browser es necesaria para hablar con Windows Hello / Face ID. Lo más rápido era cargarla desde unpkg.com.
 
-Este es el enfoque que usan GitHub, Google, Microsoft y Apple: passkeys primero, pero siempre con métodos alternativos.
+Decisión. Descargarla y servirla desde el propio backend en /vendor/simplewebauthn.js.
 
----
+Consecuencia. El admin no depende de unpkg. Si el CDN cae, mi admin sigue funcionando. Puedo auditar qué versión sirvo.
 
-### ADR 2 · Winston con transporte a MongoDB en lugar de archivos .log
+ADR 4 · Proxy del chatbot con rate limit, caché y fallback
+Situación. El chatbot necesita consultar una API de IA externa. Pero el frontend no puede llamarla directamente por tres razones: (1) el rate limit se repartiría por visitante y no por IP real, (2) las instrucciones del bot se verían en el navegador, (3) no habría caché global entre visitantes.
 
-**Situación.** Necesitaba un sistema de logs que me permitiera diagnosticar problemas desde cualquier sitio (mi PC, el móvil, en clase) sin tener que abrir la consola de Render.
+Decisión. Añadir un endpoint /api/chat en el backend que actúe como proxy:
 
-**Decisión.** Usar **Winston** con **dos transportes**: consola y **MongoDB** (colección `logs`).
+Rate limit de 10 peticiones / 15 min por IP.
 
-**Consecuencia.**
-- ✅ Los logs sobreviven a cada deploy de Render (antes se perdían porque Render borra el filesystem).
-- ✅ Se consultan desde el panel admin (pestaña Logs), filtrables por nivel.
-- ✅ Se borran automáticamente a los 30 días gracias al TTL de MongoDB. La colección no crece sin control.
-- ⚠️ Depende de que la conexión a MongoDB esté activa; si se cae, los logs se quedan solo en consola.
+Caché por idioma + pregunta con TTL de 30 min.
 
-Alternativa descartada: guardar en ficheros `.log` en el servidor. En Render Free el sistema de archivos es efímero, así que se perderían en cada reinicio.
+Validación: rechazo de textos demasiado largos (> 4.000 chars instrucciones, > 500 chars pregunta).
 
----
+Logs con Winston sin guardar el texto de la pregunta.
 
-### ADR 3 · Vendorizar SimpleWebAuthn en lugar de usar un CDN
+Manejo de errores: si la IA falla, devuelve 502 y el frontend cae al árbol de decisión.
 
-**Situación.** La librería `@simplewebauthn/browser` es necesaria en el panel admin para hablar con Windows Hello / Face ID / Touch ID. Lo más rápido era cargarla desde `unpkg.com`.
+Consecuencia. El chatbot es resiliente: dos APIs de IA cayeron durante el desarrollo (Pollinations y KeylessAI) y el chatbot siguió funcionando gracias al árbol del frontend. Los usuarios nunca ven un error técnico. En la defensa puedo explicar esto con datos reales.
 
-**Decisión.** **Descargarla y servirla desde el propio backend**, en `/vendor/simplewebauthn.js`.
+🕰️ Historial de versiones
+Versión	Fecha	Descripción
+v1	27 sep 2026	Backend base: Express + MongoDB + Resend. Formulario de contacto con guardado en BD y doble email.
+v2	27 sep 2026	Panel de administración con estética topo, tema claro/oscuro y estadísticas.
+v2.1	28 sep 2026	Auto-respuesta por email al usuario que envía el formulario.
+v2.2	29 sep 2026	Fix: rate limit solo afecta al POST del formulario, no al panel admin.
+v3	1 oct 2026	Sistema de logs con Winston y visor en el panel admin.
+v3.1	1 oct 2026	Fix: limpieza de warnings y duplicidad en el visor de logs.
+v3.2	1 oct 2026	Endpoints de passkey y vendorización de SimpleWebAuthn.
+v4	1 oct 2026	Passkeys con WebAuthn (híbrido: contraseña + passkey).
+v5	2 oct 2026	Primer endpoint de zonas de escalada (OpenStreetMap / Overpass).
+v6	2 oct 2026	Mejora búsqueda y respaldo de zonas OSM.
+v7	2 oct 2026	Fallbacks y logs para Overpass (rotación entre 3 servidores).
+v8	2 oct 2026	Query OSM ampliada + filtro por tiempo (roca/rocódromo).
+v9	3 oct 2026	Simplifica zonas de escalada y añade searchLinks.
+v9.1	3 oct 2026	Simplifica respuesta y añade searchLinks (limpieza).
+v9.2	3 oct 2026	Corrige URLs de búsqueda externa y añade TheTopo.
+v10	3 oct 2026	Sustituye Overpass/OSM por OpenBeta GraphQL.
+v10.1	3 oct 2026	Añade /api/github/activity con cache de 30 min.
+v10.2	3 oct 2026	Autenticación con GITHUB_TOKEN. Timeout OpenBeta 25 s. trust proxy.
+v10.3	3 oct 2026	Actualiza README con nuevas versiones y APIs externas.
+v11	4 oct 2026	Nuevo endpoint /api/chat como proxy del chatbot Cordada. Rate limit (10/15min), caché (30 min), validación, logs Winston, manejo de errores 502. Última versión.
+⚙️ Variables de entorno
+Copia .env.example a .env y rellena:
 
-**Consecuencia.**
-- ✅ El admin no depende de que `unpkg.com` esté disponible.
-- ✅ Si unpkg cae (ha pasado), cambia su URL o cambia su versión, mi admin sigue funcionando igual.
-- ✅ Puedo auditar exactamente qué versión estoy sirviendo.
-- ✅ La licencia MIT se preserva en `vendor/SIMPLEWEBAUTHN-LICENSE.md`.
-- ⚠️ Cuando quiera actualizar la librería, tengo que sustituir el archivo a mano.
-
-Esta es la práctica recomendada para cualquier dependencia crítica de seguridad. Los proyectos serios no confían en CDNs de terceros para autenticación.
-
----
-
-## 🕰️ Historial de versiones
-
-| Versión | Fecha | Descripción |
-|---|---|---|
-| v1 | 27 sep 2026 | Backend base: Express + MongoDB + Resend. Formulario de contacto con guardado en BD y doble email. |
-| v2 | 27 sep 2026 | Panel de administración con estética topo, tema claro/oscuro y estadísticas. |
-| v2.1 | 28 sep 2026 | Auto-respuesta por email al usuario que envía el formulario. |
-| v2.2 | 29 sep 2026 | Fix: rate limit solo afecta al POST del formulario, no al panel admin. |
-| v3 | 1 oct 2026 | Sistema de logs con Winston y visor en el panel admin. |
-| v3.1 | 1 oct 2026 | Fix: limpieza de warnings y duplicidad en el visor de logs. |
-| v3.2 | 1 oct 2026 | Endpoints de passkey y vendorización de SimpleWebAuthn. |
-| v4 | 1 oct 2026 | Passkeys con WebAuthn (híbrido: contraseña + passkey). Pantalla de login, pestaña Passkeys. |
-| v5 | 2 oct 2026 | Primer endpoint de zonas de escalada (OpenStreetMap / Overpass). |
-| v6 | 2 oct 2026 | Mejora búsqueda y respaldo de zonas OSM. |
-| v7 | 2 oct 2026 | Fallbacks y logs para Overpass (rotación entre 3 servidores). |
-| v8 | 2 oct 2026 | Query OSM ampliada + filtro por tiempo (roca/rocódromo). |
-| v9 | 3 oct 2026 | Simplifica zonas de escalada y añade `searchLinks` a theCrag, 27crags y Google. |
-| v9.1 | 3 oct 2026 | Simplifica respuesta y añade `searchLinks` (limpieza). |
-| v9.2 | 3 oct 2026 | Corrige URLs de búsqueda externa y añade TheTopo. |
-| v10 | 3 oct 2026 | Sustituye Overpass/OSM por **OpenBeta GraphQL**. Nuevo endpoint `/api/climbing/zones?q=CIUDAD`. |
-| v10.1 | 3 oct 2026 | Añade `/api/github/activity` con cache de 30 min. Filtra zonas con coordenadas inválidas. |
-| **v10.2** | **3 oct 2026** | **Autenticación con `GITHUB_TOKEN`** para la API de GitHub (rate limit 5.000/h). Timeout de OpenBeta a 25 s. `app.set("trust proxy", 1)`. **Última versión.** |
-
-## ⚙️ Variables de entorno
-
-Copia `.env.example` a `.env` y rellena:
-
-```env
+env
 # Servidor
 PORT=3000
 NODE_ENV=development
@@ -257,25 +251,23 @@ ADMIN_PASSWORD=tu_contraseña_segura
 # CORS
 ALLOWED_ORIGIN=https://gabi37smx.github.io
 
+# GitHub API
+GITHUB_TOKEN=github_pat_xxxxxxxxxxxx
+
 # Logs (opcional)
 LOG_LEVEL=info
-```
+En producción estas variables están configuradas en el panel de Render → Environment.
 
-En producción estas variables están configuradas en el panel de **Render** → Environment.
+🚀 Cómo ejecutarlo en local
+Requisitos
+Node.js 18 o superior
 
----
+Cuenta de MongoDB Atlas (gratuita)
 
-## 🚀 Cómo ejecutarlo en local
+Cuenta de Resend (gratuita)
 
-### Requisitos
-
-- Node.js 18 o superior
-- Cuenta de MongoDB Atlas (gratuita)
-- Cuenta de Resend (gratuita)
-
-### Pasos
-
-```bash
+Pasos
+bash
 # 1. Clonar el repo
 git clone https://github.com/gabi37smx/portfolio-backend.git
 cd portfolio-backend
@@ -286,42 +278,58 @@ npm install
 # 3. Crear .env a partir de .env.example y rellenar
 cp .env.example .env
 
-# 4. Arrancar en modo desarrollo (auto-reload con --watch)
+# 4. Arrancar en modo desarrollo
 npm run dev
-```
+El servidor estará en http://localhost:3000 y el panel admin en http://localhost:3000/admin.
 
-El servidor estará en `http://localhost:3000` y el panel admin en `http://localhost:3000/admin`.
+El servidor estará en http://localhost:3000 y el panel admin en http://localhost:3000/admin.
 
-> ⚠️ **Passkeys en local:** funcionan solo en `http://localhost`. No valen en `127.0.0.1`. Y las passkeys registradas en local **no sirven en producción**, porque WebAuthn distingue por dominio (RP ID).
+⚠️ Passkeys en local: funcionan solo en http://localhost. No valen en 127.0.0.1. Y las passkeys registradas en local no sirven en producción.
 
----
+📦 Despliegue en producción
+Plataforma: Render (plan gratuito)
 
-## 📦 Despliegue en producción
+Build Command: npm install
 
-- **Plataforma:** Render (plan gratuito)
-- **Build Command:** `npm install`
-- **Start Command:** `npm start`
-- **Variables de entorno:** configuradas en el panel de Render
-- **URL pública:** https://portfolio-backend-m07q.onrender.com
-- **Limitaciones del plan gratuito:** Render duerme el servicio tras 15 min sin uso. La primera petición tarda ~30 s en "despertarlo". Después va rápido.
+Start Command: npm start
 
----
+URL pública: https://portfolio-backend-m07q.onrender.com
 
-## 👤 Autor
+Limitaciones: Render duerme el servicio tras 15 min sin uso. La primera petición tarda ~30 s en despertarlo.
 
-**Gabriel Vidal Badia**
+👤 Autor
+Gabriel Vidal Badia
 
-- 🎓 1º DAM · IES Simarro (Xàtiva, Valencia)
-- 💼 Técnico Superior en Sistemas de Telecomunicación e Informáticos · CFGM SMR · 11 años de experiencia en mantenimiento industrial
-- 🎯 Enfoque: programación, inteligencia artificial y agentes
-- 📫 Contacto: gabvidbad@alu.edu.gva.es
-- 🐙 GitHub: [@gabi37smx](https://github.com/gabi37smx)
-- 💼 LinkedIn: [gabriel-vidal-badia](https://www.linkedin.com/in/gabriel-vidal-badia-19122a43b)
+🎓 1º DAM · IES Simarro (Xàtiva, Valencia)
 
----
+💼 Técnico Superior en Sistemas de Telecomunicación e Informáticos · CFGM SMR · 11 años de experiencia en mantenimiento industrial
 
-## 📄 Licencia
+🎯 Enfoque: programación, inteligencia artificial y agentes
 
+📫 Contacto: gabvidbad@alu.edu.gva.es
+
+🐙 GitHub: @gabi37smx
+
+💼 LinkedIn: gabriel-vidal-badia
+
+📄 Licencia
 Proyecto personal con fines educativos. Todos los derechos reservados.
 
-La librería `@simplewebauthn/browser` incluida en `vendor/` está bajo licencia MIT (ver `vendor/SIMPLEWEBAUTHN-LICENSE.md`).
+La librería @simplewebauthn/browser incluida en vendor/ está bajo licencia MIT (ver vendor/SIMPLEWEBAUTHN-LICENSE.md).
+
+Última actualización: 4 de octubre de 2026.
+
+🎯 Qué destacan los nuevos READMEs
+
+Backend
+✅ Sección "Chatbot Cordada · arquitectura" explicando el proxy.
+
+✅ Endpoint /api/chat documentado con ejemplo de body/response.
+
+✅ Tabla de APIs externas ampliada.
+
+✅ ADR 4 sobre el proxy del chatbot.
+
+✅ Historial actualizado a v11.
+
+✅ Variables de entorno con GITHUB_TOKEN.
