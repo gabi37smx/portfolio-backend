@@ -39,9 +39,7 @@ Todo desplegado en **Render** (plan gratuito) con MongoDB Atlas.
 
 ---
 
-## 🔌 Endpoints disponibles
-
-## 🔗 APIs externas integradas
+##  APIs externas integradas
 
 El backend actúa como proxy/caché de tres APIs públicas:
 
@@ -212,8 +210,6 @@ Alternativa descartada: guardar en ficheros `.log` en el servidor. En Render Fre
 Esta es la práctica recomendada para cualquier dependencia crítica de seguridad. Los proyectos serios no confían en CDNs de terceros para autenticación.
 
 ---
-
-## 🕰️ Historial de versiones
 
 ## 🕰️ Historial de versiones
 
