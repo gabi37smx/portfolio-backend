@@ -10,6 +10,7 @@ import contactRouter from "./routes/contact.js";
 import passkeyRouter from "./routes/passkey.js";
 import climbingRouter from "./routes/climbing.js";
 import githubRouter from "./routes/github.js";
+import chatRouter from "./routes/chat.js"; // ← NUEVO: chatbot Cordada
 import { adminAuth } from "./middleware/auth.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -44,6 +45,7 @@ app.use("/api/contact", contactRouter);
 app.use("/api/passkey", passkeyRouter);
 app.use("/api/climbing", climbingRouter);
 app.use("/api/github", githubRouter);
+app.use("/api/chat", chatRouter); // ← NUEVO: chatbot Cordada
 
 app.get("/", (req, res) => {
   res.json({ ok: true, servicio: "portfolio-backend", version: "1.0" });
