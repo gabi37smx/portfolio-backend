@@ -41,6 +41,22 @@ Todo desplegado en **Render** (plan gratuito) con MongoDB Atlas.
 
 ## 🔌 Endpoints disponibles
 
+## 🔗 APIs externas integradas
+
+El backend actúa como proxy/caché de tres APIs públicas:
+
+| API | Uso | Auth |
+|---|---|---|
+| **Open-Meteo** | Tiempo actual de las zonas consultadas | Sin autenticación |
+| **OpenBeta** (GraphQL) | Zonas de escalada por nombre de ciudad | Sin autenticación |
+| **GitHub API** | Actividad pública del usuario | Con `GITHUB_TOKEN` (rate limit 5.000/h) |
+
+Todas las respuestas se cachean en memoria para no abusar de las APIs externas:
+
+- Zonas de escalada: 24 h
+- Actividad GitHub: 30 min
+- Tiempo: 15 min
+
 ### Formulario y mensajes (`/api/contact`)
 
 | Método | Ruta | Auth | Descripción |
