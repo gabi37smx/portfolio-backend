@@ -66,6 +66,10 @@ router.get("/activity", async (req, res) => {
     };
 
     cache.set("activity", { time: Date.now(), data: payload });
+    log.info("GitHub: consulta correcta", {
+      repos: cleanRepos.length,
+      user: user.login,
+    });
     return res.json({ ...payload, cached: false });
   } catch (error) {
     log.error("Error consultando GitHub", { error: error.message });
