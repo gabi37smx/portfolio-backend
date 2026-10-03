@@ -63,7 +63,15 @@ router.get("/zones", async (req, res) => {
   try {
     const areas = await queryOpenBeta(city);
     const results = areas
-      .filter((area) => area.area_name && area.metadata?.lat != null && area.metadata?.lng != null)
+      .filter((area) => {
+        const lat = area.metadata?.lat;
+        const lng = area.metadata?.lng;
+        if (lat == null || lng == null) return false;
+        if (lat === 0 && lng === 0) return false;
+        if (Math.abs(lat) < 0.1 && Math.abs(lng) < 0.1) return false;
+        if (!area.area_name || area.area_name.trim() === "") return false;
+        return true;
+      })
       .sort((first, second) => (second.totalClimbs || 0) - (first.totalClimbs || 0))
       .slice(0, MAX_RESULTS)
       .map((area) => {
