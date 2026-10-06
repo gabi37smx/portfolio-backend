@@ -10,7 +10,8 @@ import contactRouter from "./routes/contact.js";
 import passkeyRouter from "./routes/passkey.js";
 import climbingRouter from "./routes/climbing.js";
 import githubRouter from "./routes/github.js";
-import chatRouter from "./routes/chat.js"; // ← NUEVO: chatbot Cordada
+import chatRouter from "./routes/chat.js";
+import newsRouter from "./routes/news.js"; // ← NUEVO: noticias IA
 import { adminAuth } from "./middleware/auth.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -18,13 +19,23 @@ const app = express();
 app.set("trust proxy", 1);
 
 app.use(express.json({ limit: "50kb" }));
-app.use(cors({ origin: process.env.ALLOWED_ORIGIN || "*" }));
+
+// CORS: acepta producción + desarrollo local
+app.use(cors({
+  origin: [
+    process.env.ALLOWED_ORIGIN || "https://gabi37smx.github.io",
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000"
+  ],
+  credentials: true
+}));
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
   message: { error: "Demasiados envíos. Inténtalo más tarde." },
-  // Solo cuentan las peticiones POST
   skip: (req) => req.method !== "POST",
 });
 app.use("/api/contact", limiter);
@@ -45,7 +56,8 @@ app.use("/api/contact", contactRouter);
 app.use("/api/passkey", passkeyRouter);
 app.use("/api/climbing", climbingRouter);
 app.use("/api/github", githubRouter);
-app.use("/api/chat", chatRouter); // ← NUEVO: chatbot Cordada
+app.use("/api/chat", chatRouter);
+app.use("/api/news", newsRouter); // ← NUEVO: noticias IA
 
 app.get("/", (req, res) => {
   res.json({ ok: true, servicio: "portfolio-backend", version: "1.0" });
