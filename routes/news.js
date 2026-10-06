@@ -7,7 +7,7 @@ const newsCache = new NodeCache({ stdTTL: 1800 }); // 30 minutos
 
 // GET /api/news/ai
 router.get('/ai', async (req, res) => {
-  const cacheKey = 'news:ai:gdelt';
+  const cacheKey = 'news:ai:gnews';
 
   const cached = newsCache.get(cacheKey);
   if (cached) {
@@ -16,17 +16,23 @@ router.get('/ai', async (req, res) => {
   }
 
   try {
-    // GDELT DOC 2.0 · lista de artículos sobre IA de la última semana
+    const apiKey = process.env.GNEWS_API_KEY;
+
+    if (!apiKey) {
+      throw new Error('Falta GNEWS_API_KEY en el .env');
+    }
+
+    // GNews: busca noticias de IA, en español, ordenadas por fecha, últimos 7 días
     const params = new URLSearchParams({
-      query: '"artificial intelligence" OR "inteligencia artificial"',
-      mode: 'ArtList',
-      format: 'json',
-      maxrecords: '12',
-      timespan: '1w',
-      sort: 'DateDesc'
+      q: '"inteligencia artificial" OR "artificial intelligence"',
+      lang: 'es',
+      max: '10',
+      sortby: 'publishedAt',
+      from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      apikey: apiKey
     });
 
-    const url = `https://api.gdeltproject.org/api/v2/doc/doc?${params.toString()}`;
+    const url = `https://gnews.io/api/v4/search?${params.toString()}`;
 
     const response = await fetch(url, {
       headers: { 'Accept': 'application/json' },
@@ -34,18 +40,11 @@ router.get('/ai', async (req, res) => {
     });
 
     if (!response.ok) {
-      throw new Error(`GDELT respondió ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`GNews respondió ${response.status}: ${errorText.slice(0, 100)}`);
     }
 
-    const text = await response.text();
-
-    // GDELT a veces devuelve respuesta vacía o texto plano cuando no hay resultados
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      throw new Error('GDELT no devolvió JSON válido');
-    }
+    const data = await response.json();
 
     const articles = Array.isArray(data.articles) ? data.articles : [];
 
@@ -54,17 +53,15 @@ router.get('/ai', async (req, res) => {
       events: articles.map(a => ({
         title: a.title || 'Sin título',
         url: a.url || '#',
-        domain: a.domain || '',
-        date: a.seendate || null,
-        language: a.language || '',
-        country: a.sourcecountry || ''
+        domain: a.source?.name || '',
+        publishedAt: a.publishedAt || null
       })),
       total: articles.length,
       cached_at: new Date().toISOString()
     };
 
     newsCache.set(cacheKey, simplified);
-    console.log(`[News] OK: ${simplified.events.length} artículos`);
+    console.log(`[News] OK: ${simplified.events.length} artículos de GNews`);
 
     res.json(simplified);
 
