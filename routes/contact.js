@@ -8,6 +8,15 @@ import { adminAuth } from "../middleware/auth.js";
 const router = express.Router();
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// El correo de la Generalitat (gva.es, edu.gva.es, alu.edu.gva.es...) rechaza los envíos de este servidor
+// con "550 #5.7.1 Your access to submit messages to this e-mail system has been rejected".
+// Para no acumular rebotes (que dañan la reputación del dominio), no se les envía la confirmación.
+const DOMINIOS_QUE_RECHAZAN = ["gva.es"];
+function rechazaNuestrosCorreos(correo) {
+  const dominio = String(correo).toLowerCase().split("@").pop();
+  return DOMINIOS_QUE_RECHAZAN.some((d) => dominio === d || dominio.endsWith("." + d));
+}
+
 // POST /api/contact — recibe el formulario
 router.post("/", async (req, res) => {
   const ip = req.ip || "desconocida";
@@ -47,6 +56,8 @@ router.post("/", async (req, res) => {
       id: nuevo._id.toString(),
     });
 
+    let confirmacionEnviada = false;
+
     // --- 1) Email de aviso para mí (el dueño) ---
     try {
       await resend.emails.send({
@@ -75,7 +86,12 @@ router.post("/", async (req, res) => {
     }
 
     // --- 2) Email de auto-respuesta para el usuario que escribió ---
-    try {
+    if (rechazaNuestrosCorreos(email)) {
+      log.info("Confirmación omitida: el dominio del visitante rechaza nuestros envíos", {
+        accion: "confirmacion_omitida",
+        id: nuevo._id.toString(),
+      });
+    } else try {
       await resend.emails.send({
         from: process.env.FROM_EMAIL,
         to: email,
@@ -131,6 +147,7 @@ router.post("/", async (req, res) => {
           </div>
         `,
       });
+      confirmacionEnviada = true;
       log.info("Email de auto-respuesta enviado al usuario", { id: nuevo._id.toString() });
     } catch (emailErr) {
       log.error("Error enviando auto-respuesta al usuario", {
@@ -140,7 +157,7 @@ router.post("/", async (req, res) => {
       });
     }
 
-    return res.status(201).json({ ok: true, id: nuevo._id });
+    return res.status(201).json({ ok: true, id: nuevo._id, confirmacion: confirmacionEnviada });
   } catch (err) {
     log.error("Error inesperado en /api/contact", {
       error: err.message,
