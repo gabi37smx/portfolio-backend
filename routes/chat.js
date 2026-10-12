@@ -40,7 +40,7 @@ const router = express.Router();
 router.use(express.json({ limit: "32kb" }));
 
 /* ---------- Ajustes ---------- */
-const MODELOS_POR_DEFECTO = "gemini-2.0-flash,gemini-2.5-flash,gemini-1.5-flash";
+const MODELOS_POR_DEFECTO = "gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-2.5-flash-lite";
 const GEMINI_URL = (process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta").replace(/\/+$/, "");
 
 const MAX_PREGUNTA = 500;          // igual que el límite del chat de la web
@@ -149,45 +149,27 @@ function extraerTextoGemini(datos) {
 
 /* ---------- Proveedores ---------- */
 async function llamarGemini(modelo, sistema, entrada, ms) {
-  // Endpoint oficial de Gemini:
-  // POST https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent
-  const url = GEMINI_URL + "/models/" + modelo + ":generateContent";
-
   const resp = await fetchConTiempo(
-    url,
+    GEMINI_URL + "/interactions",
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": (claveGemini() || {}).valor || ""
-      },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": (claveGemini() || {}).valor || "" },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: sistema }] },
-        contents: [
-          { role: "user", parts: [{ text: entrada }] }
-        ],
-        generationConfig: {
-          temperature: 0.6,
-          maxOutputTokens: MAX_TOKENS_SALIDA
-        }
+        model: modelo,
+        system_instruction: sistema,
+        input: entrada,
+        store: false, // que Google no guarde la conversación en tu cuenta
+        generation_config: { temperature: 0.6, max_output_tokens: MAX_TOKENS_SALIDA }
       })
     },
     ms
   );
-
   if (!resp.ok) {
-    const cuerpo = await resp.text().catch(() => "");
-    const e = new Error("HTTP " + resp.status + " " + cuerpo.slice(0, 200));
+    const e = new Error("HTTP " + resp.status);
     e.status = resp.status;
     throw e;
   }
-
-  const datos = await resp.json();
-  // La respuesta tiene forma: { candidates: [{ content: { parts: [{ text }] } }] }
-  const candidato = datos && datos.candidates && datos.candidates[0];
-  const parte = candidato && candidato.content && candidato.content.parts && candidato.content.parts[0];
-  const texto = parte && typeof parte.text === "string" ? parte.text.trim() : "";
-
+  const texto = extraerTextoGemini(await resp.json());
   if (!texto) {
     const e = new Error("respuesta vacía");
     e.status = 0;
