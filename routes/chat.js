@@ -35,7 +35,7 @@
 
 "use strict";
 
-const express = require("express");
+import express from "express";
 const router = express.Router();
 router.use(express.json({ limit: "32kb" }));
 
@@ -349,4 +349,4 @@ router.post("/", async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
