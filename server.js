@@ -12,11 +12,13 @@ import climbingRouter from "./routes/climbing.js";
 import githubRouter from "./routes/github.js";
 import chatRouter from "./routes/chat.js";
 import newsRouter from "./routes/news.js"; // ← NUEVO: noticias IA
-import { adminAuth } from "./middleware/auth.js";
+import sessionRouter from "./routes/session.js";
+import { ipCliente } from "./utils/clientIp.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.set("trust proxy", 1);
+app.disable("x-powered-by");
 
 app.use(express.json({ limit: "50kb" }));
 
@@ -37,6 +39,7 @@ const limiter = rateLimit({
   max: 5,
   message: { error: "Demasiados envíos. Inténtalo más tarde." },
   skip: (req) => req.method !== "POST",
+  keyGenerator: (req) => ipCliente(req), // IP real del visitante, no la del proxy de Render
 });
 app.use("/api/contact", limiter);
 
@@ -53,6 +56,7 @@ mongoose
 
 app.use("/vendor", express.static(path.join(__dirname, "vendor")));
 app.use("/api/contact", contactRouter);
+app.use("/api/session", sessionRouter);
 app.use("/api/passkey", passkeyRouter);
 app.use("/api/climbing", climbingRouter);
 app.use("/api/github", githubRouter);

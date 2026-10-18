@@ -285,7 +285,28 @@
     const loginScreen = document.getElementById("loginScreen");
     const adminScreen = document.getElementById("adminScreen");
 
-    let sessionPassword = new URLSearchParams(location.search).get("password");
+    /* La contraseña ya no viaja por la URL: el panel guarda solo un token de sesión (caduca a las 8 h) */
+    if (location.search.includes("password=")) history.replaceState(null, "", location.pathname);
+
+    let sessionToken = null;
+    try { sessionToken = sessionStorage.getItem("adminToken"); } catch (e) {}
+
+    function guardarToken(token) {
+      sessionToken = token;
+      try { sessionStorage.setItem("adminToken", token); } catch (e) {}
+    }
+    function borrarToken() {
+      sessionToken = null;
+      try { sessionStorage.removeItem("adminToken"); } catch (e) {}
+    }
+    // fetch con el token en la cabecera; si el servidor dice 401, vuelve a la pantalla de login
+    function authFetch(url, opciones = {}) {
+      const headers = { ...(opciones.headers || {}), Authorization: "Bearer " + (sessionToken || "") };
+      return fetch(url, { ...opciones, headers }).then((res) => {
+        if (res.status === 401) { borrarToken(); showLogin(); }
+        return res;
+      });
+    }
 
     function showAdmin() {
       loginScreen.hidden = true;
@@ -300,7 +321,7 @@
       adminScreen.hidden = true;
     }
 
-    if (sessionPassword) {
+    if (sessionToken) {
       showAdmin();
     } else {
       showLogin();
@@ -344,7 +365,7 @@
             throw new Error(verifyData.error || "Verificación fallida");
           }
 
-          sessionPassword = verifyData.password;
+          guardarToken(verifyData.token);
           loginPasskeyStatus.textContent = "Acceso correcto. Entrando…";
           loginPasskeyStatus.classList.add("is-success");
           setTimeout(showAdmin, 400);
@@ -375,13 +396,24 @@
 
         const candidate = inputLoginPassword.value;
         try {
-          const res = await fetch(`/api/contact/messages?password=${encodeURIComponent(candidate)}`);
+          const res = await fetch("/api/session", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password: candidate }),
+          });
+          if (res.status === 429) {
+            loginPasswordStatus.textContent = "Demasiados intentos. Espera unos minutos.";
+            loginPasswordStatus.classList.add("is-error");
+            return;
+          }
           if (!res.ok) {
             loginPasswordStatus.textContent = "Contraseña incorrecta.";
             loginPasswordStatus.classList.add("is-error");
             return;
           }
-          sessionPassword = candidate;
+          const datos = await res.json();
+          guardarToken(datos.token);
+          inputLoginPassword.value = "";
           loginPasswordStatus.textContent = "Acceso correcto. Entrando…";
           loginPasswordStatus.classList.add("is-success");
           setTimeout(showAdmin, 400);
@@ -403,7 +435,7 @@
           return;
         }
         try {
-          const optionsRes = await fetch("/api/passkey/register/options", { method: "POST" });
+          const optionsRes = await authFetch("/api/passkey/register/options", { method: "POST" });
           if (!optionsRes.ok) throw new Error("Error pidiendo opciones de registro");
           const options = await optionsRes.json();
 
@@ -412,7 +444,7 @@
           const regResp = await SimpleWebAuthnBrowser.startRegistration(options);
           regResp.nombre = nombre;
 
-          const verifyRes = await fetch("/api/passkey/register/verify", {
+          const verifyRes = await authFetch("/api/passkey/register/verify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(regResp),
@@ -462,7 +494,7 @@
     async function cargarMensajes() {
       content.innerHTML = '<div class="empty"><span class="loader"></span> Cargando mensajes…</div>';
       try {
-        const res = await fetch(`/api/contact/messages?password=${encodeURIComponent(sessionPassword || "")}`);
+        const res = await authFetch("/api/contact/messages");
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           content.innerHTML = `<div class="error-msg"><strong>Error ${res.status}:</strong> ${escapeHtml(err.error || "No autorizado")}</div>`;
@@ -514,7 +546,7 @@
 
     async function marcar(id) {
       try {
-        const res = await fetch(`/api/contact/messages/${id}/leido?password=${encodeURIComponent(sessionPassword || "")}`, { method: "PATCH" });
+        const res = await authFetch(`/api/contact/messages/${id}/leido`, { method: "PATCH" });
         if (res.ok) cargarMensajes();
       } catch (err) { console.error(err); }
     }
@@ -528,10 +560,10 @@
     async function cargarLogs() {
       logsContent.innerHTML = '<div class="empty"><span class="loader"></span> Cargando logs…</div>';
       try {
-        const params = new URLSearchParams({ password: sessionPassword || "" });
+        const params = new URLSearchParams();
         if (currentLevel !== "all") params.set("nivel", currentLevel);
 
-        const res = await fetch(`/api/contact/logs?${params}`);
+        const res = await authFetch(`/api/contact/logs?${params}`);
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           logsContent.innerHTML = `<div class="error-msg"><strong>Error ${res.status}:</strong> ${escapeHtml(err.error || "No autorizado")}</div>`;
@@ -584,7 +616,7 @@
     async function cargarPasskeys() {
       passkeysContent.innerHTML = '<div class="empty"><span class="loader"></span> Cargando passkeys…</div>';
       try {
-        const res = await fetch(`/api/passkey/list?password=${encodeURIComponent(sessionPassword || "")}`);
+        const res = await authFetch("/api/passkey/list");
         if (!res.ok) {
           passkeysContent.innerHTML = `<div class="error-msg">Error cargando passkeys</div>`;
           return;
@@ -624,7 +656,7 @@
     async function borrarPasskey(id, nombre) {
       if (!confirm(`¿Seguro que quieres borrar la passkey "${nombre}"? Si pierdes el dispositivo, no podrás entrar con él.`)) return;
       try {
-        const res = await fetch(`/api/passkey/${encodeURIComponent(id)}?password=${encodeURIComponent(sessionPassword || "")}`, { method: "DELETE" });
+        const res = await authFetch(`/api/passkey/${encodeURIComponent(id)}`, { method: "DELETE" });
         if (res.ok) {
           cargarPasskeys();
         } else {
@@ -639,7 +671,7 @@
        UTILIDADES
        ============================================================ */
     document.getElementById("refreshBtn")?.addEventListener("click", () => {
-      if (sessionPassword) { cargarMensajes(); cargarLogs(); cargarPasskeys(); }
+      if (sessionToken) { cargarMensajes(); cargarLogs(); cargarPasskeys(); }
     });
 
     function escapeHtml(str) {

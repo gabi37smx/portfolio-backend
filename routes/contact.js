@@ -4,6 +4,7 @@ import { Resend } from "resend";
 import Message from "../models/Message.js";
 import { log } from "../logger.js";
 import { adminAuth } from "../middleware/auth.js";
+import { ipCliente } from "../utils/clientIp.js";
 
 const router = express.Router();
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -19,7 +20,7 @@ function rechazaNuestrosCorreos(correo) {
 
 // POST /api/contact — recibe el formulario
 router.post("/", async (req, res) => {
-  const ip = req.ip || "desconocida";
+  const ip = ipCliente(req);
 
   try {
     const { nombre, email, asunto, mensaje, telefono, quiereLlamada } = req.body;

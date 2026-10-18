@@ -36,6 +36,7 @@
 "use strict";
 
 import express from "express";
+import { ipCliente, fuenteIp } from "../utils/clientIp.js";
 const router = express.Router();
 router.use(express.json({ limit: "32kb" }));
 
@@ -267,8 +268,8 @@ let global = { dia: "", n: 0 };
 const hoy = () => new Date().toISOString().slice(0, 10);
 
 function ipDe(req) {
-  // Con app.set("trust proxy", 1) (ya está en tu server.js) req.ip es la IP real del visitante en Render
-  return req.ip || (req.socket && req.socket.remoteAddress) || "desconocida";
+  // En Render, req.ip es una IP interna del proxy (10.x): se busca la IP real en las cabeceras del proxy
+  return ipCliente(req);
 }
 
 // Devuelve null si puede pasar, o el motivo si no
@@ -313,7 +314,9 @@ router.get("/health", (req, res) => {
       id: i.id,
       estado: segundosApartado(i.id) > 0 ? "apartado " + segundosApartado(i.id) + " s" : "listo"
     })),
-    usoHoy: { preguntas: global.dia === hoy() ? global.n : 0, tope: limiteDiario() }
+    usoHoy: { preguntas: global.dia === hoy() ? global.n : 0, tope: limiteDiario() },
+    // Para comprobar que se detecta bien la IP del visitante (debe coincidir con tu IP pública)
+    tuIp: { detectada: ipCliente(req), fuente: fuenteIp(req) }
   });
 });
 

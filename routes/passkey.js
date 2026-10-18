@@ -11,7 +11,7 @@ import {
 } from "@simplewebauthn/server";
 import Passkey from "../models/Passkey.js";
 import { log } from "../logger.js";
-import { adminAuth } from "../middleware/auth.js";
+import { adminAuth, crearToken, duracionTokenSegundos } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -67,9 +67,10 @@ function toBase64URL(value) {
 
 /* ============================================================
    REGISTRO · Paso 1: generar opciones
+   (solo con sesión de admin: si no, cualquiera podría registrar su passkey)
    ============================================================ */
 
-router.post("/register/options", async (req, res) => {
+router.post("/register/options", adminAuth, async (req, res) => {
   try {
     const existingPasskeys = await Passkey.find();
 
@@ -140,7 +141,7 @@ router.post("/register/options", async (req, res) => {
    REGISTRO · Paso 2: verificar la respuesta del navegador
    ============================================================ */
 
-router.post("/register/verify", async (req, res) => {
+router.post("/register/verify", adminAuth, async (req, res) => {
   try {
     const expectedChallenge = getChallenge("register");
     if (!expectedChallenge) {
@@ -321,7 +322,7 @@ router.post("/login/verify", async (req, res) => {
     clearChallenge("login");
     log.info("Passkey: login correcto", { credentialID: passkey.credentialID });
 
-    res.json({ verified: true, password: process.env.ADMIN_PASSWORD });
+    res.json({ verified: true, token: crearToken(), expiraEnSegundos: duracionTokenSegundos });
   } catch (err) {
     log.error("Error verificando login con passkey", {
       error: err.message,
