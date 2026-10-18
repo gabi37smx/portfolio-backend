@@ -210,6 +210,7 @@
         <div class="admin-actions">
           <button class="btn" id="btnRegisterPasskey" title="Registrar este dispositivo como passkey">🔑 Registrar passkey</button>
           <button class="btn" id="refreshBtn" title="Recargar">⟳ Recargar</button>
+          <button class="btn" id="btnLogout" title="Cerrar sesión y volver al login">⏻ Cerrar sesión</button>
           <button class="theme-toggle" id="themeToggle" aria-label="Cambiar tema">
             <svg class="icon icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
@@ -294,6 +295,7 @@
     function guardarToken(token) {
       sessionToken = token;
       try { sessionStorage.setItem("adminToken", token); } catch (e) {}
+      programarCaducidad();
     }
     function borrarToken() {
       sessionToken = null;
@@ -303,7 +305,7 @@
     function authFetch(url, opciones = {}) {
       const headers = { ...(opciones.headers || {}), Authorization: "Bearer " + (sessionToken || "") };
       return fetch(url, { ...opciones, headers }).then((res) => {
-        if (res.status === 401) { borrarToken(); showLogin(); }
+        if (res.status === 401) cerrarSesion("Tu sesión ha caducado. Vuelve a entrar.");
         return res;
       });
     }
@@ -321,8 +323,45 @@
       adminScreen.hidden = true;
     }
 
+    /* ---------- Cerrar sesión ----------
+       Borra el token, vacía los datos que había en pantalla y vuelve al login.
+       (El token es sin estado: no se revoca en el servidor, simplemente se descarta
+       y caduca solo a las 8 h.) */
+    let temporizadorCaducidad = null;
+
+    function cerrarSesion(mensaje) {
+      borrarToken();
+      clearTimeout(temporizadorCaducidad);
+      content.innerHTML = "";
+      logsContent.innerHTML = "";
+      passkeysContent.innerHTML = "";
+      stats.hidden = true;
+      showLogin();
+      loginPasskeyStatus.textContent = "";
+      loginPasswordStatus.className = "login-status";
+      loginPasswordStatus.textContent = mensaje || "Sesión cerrada.";
+      inputLoginPassword.value = "";
+    }
+
+    // Cierra la sesión sola cuando caduca el token (la fecha viaja dentro del propio token)
+    function programarCaducidad() {
+      clearTimeout(temporizadorCaducidad);
+      if (!sessionToken) return;
+      try {
+        const b64 = sessionToken.split(".")[0].replace(/-/g, "+").replace(/_/g, "/");
+        const { exp } = JSON.parse(atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4)));
+        const ms = exp - Date.now();
+        if (ms <= 0) { cerrarSesion("Tu sesión ha caducado. Vuelve a entrar."); return; }
+        temporizadorCaducidad = setTimeout(() => cerrarSesion("Tu sesión ha caducado. Vuelve a entrar."), Math.min(ms, 2147483000));
+      } catch (e) { /* si no se puede leer, el servidor seguirá rechazándolo con 401 */ }
+    }
+
+    document.getElementById("btnLogout").addEventListener("click", () => cerrarSesion("Sesión cerrada."));
+
+    // Pantalla inicial. Los datos se cargan al final del script, cuando ya existen todas las variables.
     if (sessionToken) {
-      showAdmin();
+      loginScreen.hidden = true;
+      adminScreen.hidden = false;
     } else {
       showLogin();
     }
@@ -680,6 +719,12 @@
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
       }[c]));
     }
+
+    /* ============================================================
+       ARRANQUE (al final: ya existen todas las variables y funciones)
+       ============================================================ */
+    programarCaducidad();
+    if (sessionToken) { cargarMensajes(); cargarLogs(); cargarPasskeys(); }
   </script>
 </body>
 </html>

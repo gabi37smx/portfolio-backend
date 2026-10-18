@@ -192,6 +192,8 @@ El admin puede entrar de dos formas:
 - **Registrar passkeys exige sesión**: solo un admin ya autenticado puede registrar una passkey nueva.
 - **Bloqueo por intentos**: 8 contraseñas incorrectas en 15 minutos bloquean esa IP durante un rato.
 - **Estándar**: WebAuthn (W3C), el mismo que usan Google, GitHub, Microsoft y Apple.
+
+El informe completo de los fallos de seguridad detectados y las correcciones aplicadas está en [`docs/auditoria-seguridad.md`](docs/auditoria-seguridad.md).
 - **Vendorizado**: `@simplewebauthn/browser` se sirve desde `/vendor/simplewebauthn.js`, no desde un CDN externo.
 
 ---
