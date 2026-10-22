@@ -15,7 +15,7 @@ Frontend en HTML, CSS y JS puros. Backend propio con Node.js, MongoDB, Resend, W
 Gestiona cinco cosas del portfolio:
 
 - **Formulario de contacto**: recibe mensajes de la web pública, los guarda en MongoDB, avisa al dueño por email y envía una auto-respuesta al visitante.
-- **Panel de administración**: permite ver los mensajes, marcarlos como leídos, consultar los logs y gestionar las passkeys.
+- **Panel de administración**: permite ver los mensajes, marcarlos como leídos, borrarlos (uno a uno o por selección), consultar los logs y gestionar las passkeys.
 - **Autenticación del admin**: sistema híbrido, passkeys con WebAuthn (huella, Face ID, Windows Hello, llave física) y contraseña como fallback.
 - **Proxy del chatbot "Cordada"**: recibe las preguntas del visitante y las reenvía a una API de IA externa, con límites de uso y fallback.
 - **Proxy de noticias de IA**: sirve los últimos artículos sobre inteligencia artificial obtenidos de GNews, con caché de 30 minutos.
@@ -31,7 +31,7 @@ Gestiona cinco cosas del portfolio:
 | MongoDB Atlas | Base de datos (colecciones `messages`, `passkeys`, `logs`) |
 | Mongoose | ODM para MongoDB |
 | Resend | Envío de emails transaccionales |
-| Winston + winston-mongodb | Logs en consola y en MongoDB con TTL de 30 días |
+| Winston + winston-mongodb | Logs en consola y en MongoDB, con borrado automático (14 días por defecto) |
 | SimpleWebAuthn v9 | Implementación de WebAuthn (passkeys) |
 | express-rate-limit | Protección contra spam (formulario y chatbot) |
 | node-cache | Caché en memoria (noticias IA) |
@@ -63,6 +63,7 @@ El backend actúa como **proxy/caché** de varias APIs públicas:
 | POST | `/api/contact` | ❌ | Recibe el formulario, guarda en BD y envía 2 emails (aviso al dueño y confirmación al visitante) |
 | GET | `/api/contact/messages` | ✅ | Devuelve los mensajes (admin) |
 | PATCH | `/api/contact/messages/:id/leido` | ✅ | Marca un mensaje como leído |
+| POST | `/api/contact/messages/borrar` | ✅ | Borra uno o varios mensajes (`{ "ids": [...] }`, máximo 200; valida que cada id sea un ObjectId) |
 | GET | `/api/contact/logs` | ✅ | Últimos 100 logs (admin, filtrable con `?nivel=info\|warn\|error`) |
 
 ### Chatbot (`/api/chat`)
@@ -203,7 +204,7 @@ El informe completo de los fallos de seguridad detectados y las correcciones apl
 Los eventos importantes se registran con Winston y se guardan en:
 
 - **Consola**: visibles en los logs de Render.
-- **MongoDB**: colección `logs`, con TTL de 30 días (borrado automático).
+- **MongoDB**: colección `logs`, con un índice TTL que borra los logs de más de 14 días (configurable con `LOG_RETENCION_DIAS`). El índice lo comprueba y ajusta `utils/retencionLogs.js` en cada arranque.
 
 | Nivel | Cuándo se usa |
 | --- | --- |
@@ -233,7 +234,8 @@ portfolio-backend/
 │   ├── climbing.js          ← Zonas de escalada (OpenBeta)
 │   └── github.js            ← Actividad de GitHub
 ├── utils/
-│   └── clientIp.js          ← IP real del visitante detrás de los proxies de Render
+│   ├── clientIp.js          ← IP real del visitante detrás de los proxies de Render
+│   └── retencionLogs.js     ← Índice TTL: borra los logs antiguos
 ├── vendor/
 │   ├── simplewebauthn.js    ← Librería SimpleWebAuthn vendorizada
 │   └── SIMPLEWEBAUTHN-LICENSE.md
@@ -261,7 +263,7 @@ portfolio-backend/
 
 - **Situación.** Necesitaba diagnosticar problemas desde cualquier sitio sin abrir la consola de Render. En Render Free el filesystem es efímero.
 - **Decisión.** Winston con dos transportes: consola y MongoDB.
-- **Consecuencia.** Los logs sobreviven a cada deploy, se consultan desde el panel admin y se borran solos a los 30 días por el TTL de MongoDB.
+- **Consecuencia.** Los logs sobreviven a cada deploy, se consultan desde el panel admin y se borran solos pasados 14 días (configurable con `LOG_RETENCION_DIAS`) mediante un índice TTL de MongoDB, para no llenar los 512 MB del cluster gratuito.
 
 ### ADR 3 · Vendorizar SimpleWebAuthn en lugar de usar un CDN
 
@@ -355,6 +357,10 @@ GEMINI_API_KEY=xxxxxxxxxxxxxxxxxxxx
 
 # Logs (opcional)
 LOG_LEVEL=info
+# LOG_RETENCION_DIAS=14
+
+# Correo (opcional)
+# DOMINIOS_SIN_CONFIRMACION=gva.es   (dominios a los que no se envía la confirmación; 'ninguno' lo desactiva)
 ```
 
 En producción estas variables están configuradas en el panel de Render → Environment.

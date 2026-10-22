@@ -113,7 +113,8 @@ export function adminAuth(req, res, next) {
   }
 
   if ((bearer && verificarToken(bearer[1])) || (password && comprobarPassword(password))) {
-    log.info("Acceso al admin correcto", { ip, ruta });
+    // Las peticiones correctas ya no se registran una a una (llenaban la base de datos de logs);
+    // se siguen registrando los inicios de sesión, los fallos y los bloqueos.
     return next();
   }
 

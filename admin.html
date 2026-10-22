@@ -101,6 +101,15 @@
     .stat { display: inline-flex; align-items: baseline; gap: .4rem; padding: .4rem .8rem; font-family: var(--mono); font-size: .8rem; background: var(--surface); border: 2px solid var(--text); border-radius: var(--radius); box-shadow: 2px 2px 0 var(--text); }
     .stat strong { font-family: var(--display); font-size: 1.1rem; font-weight: 700; color: var(--accent); }
     .stat span { color: var(--muted); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; transform: none; }
+    .btn--danger { color: var(--accent); background: transparent; }
+    .btn--danger:hover:not(:disabled) { background: var(--accent); color: var(--on-accent); }
+    .bulk-bar { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; margin-bottom: 1.25rem; padding: .6rem .8rem; background: var(--surface); border: 2px solid var(--text); border-radius: var(--radius); box-shadow: 2px 2px 0 var(--text); }
+    .bulk-check, .card__check { display: inline-flex; align-items: center; gap: .5rem; font-family: var(--mono); font-size: .8rem; cursor: pointer; }
+    .bulk-check input, .card__check input { width: 1.15rem; height: 1.15rem; accent-color: var(--accent); cursor: pointer; }
+    .card__title-wrap { display: flex; align-items: center; gap: .75rem; }
+    .card.is-selected { outline: 3px solid var(--accent); outline-offset: 2px; }
+    .card__actions { display: flex; gap: .5rem; flex-wrap: wrap; }
     .messages { display: grid; gap: 1.25rem; }
     .card { position: relative; background: var(--surface); border: 2px solid var(--text); box-shadow: 4px 4px 0 var(--text); padding: 1.5rem 1.5rem 1.25rem; transition: transform .2s var(--ease), box-shadow .2s var(--ease), border-color .2s var(--ease); }
     .card.no-leido { border-left: 6px solid var(--accent); }
@@ -234,6 +243,11 @@
           <div class="stat"><strong id="unreadCount">0</strong><span>sin leer</span></div>
           <div class="stat"><strong id="callCount">0</strong><span>piden llamada</span></div>
         </div>
+        <div class="bulk-bar" id="bulkBar" hidden>
+          <label class="bulk-check"><input type="checkbox" id="selectAll" /> Seleccionar todos</label>
+          <button class="btn" id="selectRead" type="button">Seleccionar leídos</button>
+          <button class="btn btn--danger" id="deleteSelected" type="button" disabled>🗑 Borrar seleccionados (<span id="selectedCount">0</span>)</button>
+        </div>
         <div id="content"><div class="empty"><span class="loader"></span> Cargando mensajes…</div></div>
       </section>
 
@@ -245,7 +259,7 @@
             <button class="filter-btn-logs" data-level="warn">Warn</button>
             <button class="filter-btn-logs" data-level="error">Error</button>
           </div>
-          <p class="logs-hint">Últimos 100 eventos registrados. Los logs se borran automáticamente a los 30 días.</p>
+          <p class="logs-hint">Últimos 100 eventos registrados. Los logs antiguos se borran automáticamente.</p>
         </div>
         <div id="logsContent"><div class="empty"><span class="loader"></span> Cargando logs…</div></div>
       </section>
@@ -336,6 +350,7 @@
       logsContent.innerHTML = "";
       passkeysContent.innerHTML = "";
       stats.hidden = true;
+      document.getElementById("bulkBar").hidden = true;
       showLogin();
       loginPasskeyStatus.textContent = "";
       loginPasswordStatus.className = "login-status";
@@ -542,6 +557,7 @@
         const data = await res.json();
         if (!Array.isArray(data) || data.length === 0) {
           stats.hidden = true;
+          document.getElementById("bulkBar").hidden = true;
           content.innerHTML = `<div class="empty"><strong>No hay mensajes todavía.</strong></div>`;
           return;
         }
@@ -553,6 +569,14 @@
         content.querySelectorAll("[data-mark-read]").forEach(btn => {
           btn.addEventListener("click", () => marcar(btn.dataset.markRead));
         });
+        content.querySelectorAll("[data-delete]").forEach(btn => {
+          btn.addEventListener("click", () => borrarMensajes([btn.dataset.delete]));
+        });
+        content.querySelectorAll("[data-select]").forEach(chk => {
+          chk.addEventListener("change", actualizarSeleccion);
+        });
+        document.getElementById("bulkBar").hidden = false;
+        actualizarSeleccion();
       } catch (err) {
         content.innerHTML = `<div class="error-msg">Error de conexión: ${err.message}</div>`;
       }
@@ -565,7 +589,10 @@
       return `
         <article class="card ${m.leido ? "leido" : "no-leido"}">
           <header class="card__header">
-            <h2 class="card__title">${escapeHtml(m.asunto)}</h2>
+            <div class="card__title-wrap">
+              <label class="card__check"><input type="checkbox" data-select="${m._id}" data-leido="${m.leido ? "1" : "0"}" aria-label="Seleccionar mensaje de ${escapeHtml(m.nombre)}" /></label>
+              <h2 class="card__title">${escapeHtml(m.asunto)}</h2>
+            </div>
             <span class="badge ${m.leido ? "" : "badge--new"}">${m.leido ? "Leído" : "Nuevo"}</span>
           </header>
           <div class="card__meta">
@@ -577,11 +604,57 @@
           <div class="card__message">${escapeHtml(m.mensaje)}</div>
           <footer class="card__footer">
             <span class="card__date">ID: ${m._id}</span>
-            ${!m.leido ? `<button class="btn btn--primary" data-mark-read="${m._id}">Marcar como leído</button>` : ""}
+            <div class="card__actions">
+              ${!m.leido ? `<button class="btn btn--primary" data-mark-read="${m._id}">Marcar como leído</button>` : ""}
+              <button class="btn btn--danger" data-delete="${m._id}">Borrar</button>
+            </div>
           </footer>
         </article>
       `;
     }
+
+    /* ---------- Selección y borrado de mensajes ---------- */
+    function casillas() { return [...content.querySelectorAll("[data-select]")]; }
+
+    function actualizarSeleccion() {
+      const todas = casillas();
+      const marcadas = todas.filter(c => c.checked);
+      todas.forEach(c => c.closest(".card").classList.toggle("is-selected", c.checked));
+      document.getElementById("selectedCount").textContent = marcadas.length;
+      document.getElementById("deleteSelected").disabled = marcadas.length === 0;
+      const todos = document.getElementById("selectAll");
+      todos.checked = todas.length > 0 && marcadas.length === todas.length;
+      todos.indeterminate = marcadas.length > 0 && marcadas.length < todas.length;
+    }
+
+    async function borrarMensajes(ids) {
+      if (!ids.length) return;
+      const texto = ids.length === 1
+        ? "¿Borrar este mensaje? Esta acción no se puede deshacer."
+        : `¿Borrar ${ids.length} mensajes? Esta acción no se puede deshacer.`;
+      if (!confirm(texto)) return;
+      try {
+        const res = await authFetch("/api/contact/messages/borrar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids }),
+        });
+        if (res.ok) { cargarMensajes(); }
+        else if (res.status !== 401) { alert("No se pudo borrar. Inténtalo de nuevo."); }
+      } catch (err) { alert("Error de conexión al borrar."); }
+    }
+
+    document.getElementById("selectAll").addEventListener("change", (e) => {
+      casillas().forEach(c => { c.checked = e.target.checked; });
+      actualizarSeleccion();
+    });
+    document.getElementById("selectRead").addEventListener("click", () => {
+      casillas().forEach(c => { c.checked = c.dataset.leido === "1"; });
+      actualizarSeleccion();
+    });
+    document.getElementById("deleteSelected").addEventListener("click", () => {
+      borrarMensajes(casillas().filter(c => c.checked).map(c => c.dataset.select));
+    });
 
     async function marcar(id) {
       try {

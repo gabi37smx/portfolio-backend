@@ -12,7 +12,10 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 // El correo de la Generalitat (gva.es, edu.gva.es, alu.edu.gva.es...) rechaza los envíos de este servidor
 // con "550 #5.7.1 Your access to submit messages to this e-mail system has been rejected".
 // Para no acumular rebotes (que dañan la reputación del dominio), no se les envía la confirmación.
-const DOMINIOS_QUE_RECHAZAN = ["gva.es"];
+// Se puede cambiar sin tocar el código con la variable DOMINIOS_SIN_CONFIRMACION (separados por comas).
+// Para probar si gva.es ya acepta nuestros correos: DOMINIOS_SIN_CONFIRMACION=ninguno
+const DOMINIOS_QUE_RECHAZAN = String(process.env.DOMINIOS_SIN_CONFIRMACION ?? "gva.es")
+  .split(",").map((d) => d.trim().toLowerCase()).filter(Boolean);
 function rechazaNuestrosCorreos(correo) {
   const dominio = String(correo).toLowerCase().split("@").pop();
   return DOMINIOS_QUE_RECHAZAN.some((d) => dominio === d || dominio.endsWith("." + d));
@@ -217,6 +220,28 @@ router.patch("/messages/:id/leido", adminAuth, async (req, res) => {
       error: err.message,
     });
     res.status(500).json({ error: "Error al actualizar" });
+  }
+});
+
+// POST /api/contact/messages/borrar — borra uno o varios mensajes (solo admin)
+// Cuerpo: { "ids": ["<id>", ...] } (máximo 200 de una vez)
+router.post("/messages/borrar", adminAuth, async (req, res) => {
+  try {
+    const recibidos = req.body && Array.isArray(req.body.ids) ? req.body.ids : [];
+    const ids = [...new Set(recibidos.map(String))];
+    const valido = (id) => /^[a-f0-9]{24}$/i.test(id);
+    if (ids.length === 0 || ids.length > 200 || !ids.every(valido)) {
+      return res.status(400).json({ error: "Lista de ids no válida" });
+    }
+    const resultado = await Message.deleteMany({ _id: { $in: ids } });
+    log.info("Mensajes borrados desde el panel", {
+      accion: "mensajes_borrados",
+      cantidad: resultado.deletedCount,
+    });
+    res.json({ ok: true, borrados: resultado.deletedCount });
+  } catch (err) {
+    log.error("Error al borrar mensajes de contacto", { error: err.message });
+    res.status(500).json({ error: "Error al borrar" });
   }
 });
 

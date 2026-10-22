@@ -14,6 +14,7 @@ import chatRouter from "./routes/chat.js";
 import newsRouter from "./routes/news.js"; // ← NUEVO: noticias IA
 import sessionRouter from "./routes/session.js";
 import { ipCliente } from "./utils/clientIp.js";
+import { asegurarRetencionLogs } from "./utils/retencionLogs.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -48,6 +49,7 @@ mongoose
   .then(() => {
     console.log("✅ MongoDB conectado");
     log.info("Servidor conectado a MongoDB", { accion: "db_conectada" });
+    asegurarRetencionLogs();
   })
   .catch((err) => {
     console.error("❌ Error MongoDB:", err.message);
